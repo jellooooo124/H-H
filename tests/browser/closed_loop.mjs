@@ -69,6 +69,7 @@ try {
   );
   await clinician.getByRole('button', { name: '送出醫護決策' }).click();
   await clinician.getByText(/DEMO-P001 · ESCALATED · Version/).waitFor({ state: 'visible', timeout: 15000 });
+  await clinician.getByRole('status').getByText('決策紀錄：ESCALATED；所有病患通知均為模擬').waitFor({ state: 'visible', timeout: 15000 });
   const followups = await clinician.request.get(baseURL + '/v2/tasks', {
     headers: { Authorization: 'Bearer ' + tokens.clinician }
   });

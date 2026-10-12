@@ -4,6 +4,7 @@ import { ref, computed } from 'vue';
 const commPatient=ref('DEMO-P001'),commTemplate=ref('CHECKIN_REQUEST'),commHours=ref(24),commItems=ref([]),commNotice=ref('');
 const token=ref(''),cases=ref([]),tasks=ref([]),selected=ref(null),audits=ref([]),trend=ref(null);
 const comment=ref(''),choice=ref('escalate'),busy=ref(false),error=ref(''),activeTab=ref('queue');
+const decisionNotice=ref('');
 const resolution=ref('handoff_documented'),resolutionNote=ref('');
 const metrics=ref(null);
 const inbox=ref([]),rosters=ref({}),timeline=ref([]),jobHealth=ref(null);
@@ -46,11 +47,11 @@ async function resolveTask(t){
   }catch(e){error.value=e.message}finally{busy.value=false}
 }
 async function decide(){
-  if(!selected.value)return;busy.value=true;error.value='';try{
+  if(!selected.value)return;busy.value=true;error.value='';decisionNotice.value='';try{
     const r=await request('/v1/decisions',{method:'POST',body:JSON.stringify({case_id:selected.value.case_id,
       choice:choice.value,comment:comment.value,expected_version:selected.value.version})});
     comment.value='';await refresh();await open(selected.value);
-    alert(`決策紀錄：${r.status}；所有病患通知均為模擬`);
+    decisionNotice.value=`決策紀錄：${r.status}；所有病患通知均為模擬`;
   }catch(e){error.value=e.message}finally{busy.value=false}
 }
 async function fetchRoster(patientRef){
@@ -105,6 +106,7 @@ const statusLabel=s=>({OPEN:'待接單',ACKNOWLEDGED:'已接單',OVERDUE:'已逾
     <button @click="refresh">重新載入任務及案件</button>
   </section>
   <p v-if="error" role="alert" class="error">{{error}}</p>
+  <p v-if="decisionNotice" role="status" class="success">{{decisionNotice}}</p>
   <section class="metrics" v-if="metrics">
     <div><small>待處理任務</small><strong>{{openTasks.length}}</strong></div>
     <div><small>量測筆數</small><strong>{{metrics.observation_count}}</strong></div>
