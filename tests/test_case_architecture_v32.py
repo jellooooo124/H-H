@@ -108,9 +108,8 @@ def test_frozen_v31_http_contract():
     root=Path(__file__).resolve().parents[1]
     from app.main import create_app
     app=create_app()
-    routes=sorted(set((next(iter(r.methods)),r.path) for r in app.routes
-                      if hasattr(r,'methods') and r.path not in
-                      ('/openapi.json','/docs','/docs/oauth2-redirect','/redoc')))
+    from route_contract import iter_http_routes
+    routes=sorted(set(iter_http_routes(app)))
     expected=json.loads((root/'contracts/api_routes_v3_1.json').read_text())
     assert len(routes)==len(expected)==59
     assert [list(r) for r in routes]==expected

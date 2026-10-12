@@ -13,6 +13,7 @@ from app.store import Store as LegacyStore
 from app.infrastructure.persistence.postgres_compat import PostgresCompat as CanonicalPg
 from app.postgres_compat import PostgresCompat as LegacyPg
 from app.main import create_app
+from route_contract import iter_http_routes
 from test_system import FakeModel, patient_header, clinician_header, internal_header, NORMAL, client, settings
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -57,12 +58,7 @@ def test_access_control_rechecks_oidc_assignments_each_time():
 
 def test_baseline_http_contract_paths_and_methods_unchanged(settings):
     app=create_app(settings,model=FakeModel(),dispatch=lambda payload:None)
-    current=[]
-    for route in app.routes:
-        if not hasattr(route,'methods'):continue
-        for method in sorted(route.methods):
-            if method in ('GET','POST','PUT','DELETE','PATCH') and route.path not in ('/openapi.json','/docs','/docs/oauth2-redirect','/redoc'):
-                current.append(method+' '+route.path)
+    current=[method+' '+path for method,path in iter_http_routes(app)]
     expected=json.loads((ROOT/'docs/API_CONTRACT_3_0.json').read_text())['routes']
     assert sorted(current)==expected
     assert len(current)==len(set(current)), 'Ambiguous duplicate HTTP routes are forbidden'
@@ -105,3 +101,24 @@ def test_case_queries_redact_without_editing_persisted_case(settings):
     retrieved=cq.details(payload['case_id'])
     assert retrieved['payload']['meal_image_data_url'] is None
     assert store.get(payload['case_id'])['payload']['meal_image_data_url']==payload['meal_image_data_url']
+
+
+def test_route_contract_iterates_included_router_paths_and_methods():
+    """Catch a regression in FastAPI route tree traversal and prefix handling."""
+    from fastapi import APIRouter, FastAPI
+    nested = APIRouter()
+
+    @nested.get('/observations/{observation_id}')
+    def read_observation(observation_id: str):
+        return {'id': observation_id}
+
+    @nested.post('/observations')
+    def create_observation():
+        return {'ok': True}
+
+    app=FastAPI()
+    app.include_router(nested,prefix='/v2')
+    routes=list(iter_http_routes(app))
+    assert ('GET','/v2/observations/{observation_id}') in routes
+    assert ('POST','/v2/observations') in routes
+    assert len(routes)==2
