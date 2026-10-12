@@ -80,30 +80,38 @@ jobs:
         run: |
           docker compose cp workflows n8n:/tmp/workflows
           docker compose exec -T n8n n8n import:workflow --separate --input=/tmp/workflows
-      - name: Execute actual n8n 09 PostgreSQL audit workflow against running API
+      - name: Execute published n8n check-in webhook with synthetic-only event
         run: |
           set -euo pipefail
-          # Do not modify any of the 15 distributable workflow JSONs.
           python - <<'PY'
           import json
           from pathlib import Path
-          original=json.loads(Path('workflows/09_database_auth_audit_health.json').read_text())
-          original['id']='ci-audit-readiness'
-          original['name']='CI - PostgreSQL Audit Execution (ephemeral)'
-          # The server CLI requires an Execute Workflow Trigger rather than
-          # a Schedule Trigger; only this ephemeral CI copy is adapted.
-          trigger=original['nodes'][0]
-          assert trigger['type']=='n8n-nodes-base.scheduleTrigger'
-          trigger['type']='n8n-nodes-base.executeWorkflowTrigger'
-          trigger['typeVersion']=1.1
-          trigger['parameters']={}
-          Path('/tmp/hah_ci_09.json').write_text(json.dumps(original))
+          data=json.loads(Path('workflows/05_checkin_safety_route.json').read_text())
+          data['id']='ci-checkin-route'
+          data['name']='CI - Synthetic Webhook Test'
+          Path('/tmp/ci_checkin_flow.json').write_text(json.dumps(data))
           PY
-          docker compose cp /tmp/hah_ci_09.json n8n:/tmp/hah_ci_09.json
-          docker compose exec -T n8n n8n import:workflow --input=/tmp/hah_ci_09.json
-          # n8n CLI uses the same disposable volume, but does not race the server process.
-          docker compose stop n8n
-          docker compose run --rm --no-deps n8n execute --id=ci-audit-readiness
+          docker compose cp /tmp/ci_checkin_flow.json n8n:/tmp/ci_checkin_flow.json
+          docker compose exec -T n8n n8n import:workflow --input=/tmp/ci_checkin_flow.json
+          docker compose exec -T n8n n8n publish:workflow --id=ci-checkin-route
+          docker compose restart n8n
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 3 http://127.0.0.1:5678/healthz >/dev/null; then break; fi
+            sleep 2
+          done
+          # Seed an entirely synthetic event via the local test container.
+          docker compose exec -T api python -c "from app.main import app; app.state.coordination.create_checkin('DEMO-P001','CHK-CI-SYNTHETIC0001',{'symptoms': {'swelling': True}, 'is_synthetic': True})"
+          curl -fsS --max-time 20 -X POST -H 'Content-Type: application/json' \
+            -d '{"event_id":"CHK-CI-SYNTHETIC0001"}' \
+            http://127.0.0.1:5678/webhook/hah-checkin-intake >/tmp/ci_webhook_response.json
+          status=""
+          for i in $(seq 1 25); do
+            status="$(docker compose exec -T api python -c "from app.main import app; row=app.state.store.db.execute('SELECT status FROM checkins WHERE event_id=?',('CHK-CI-SYNTHETIC0001',)).fetchone();print(row['status'] if row else 'MISSING')" | tr -d '\r\n')"
+            if [ "$status" = "TRIAGED" ]; then break; fi
+            sleep 2
+          done
+          test "$status" = "TRIAGED" || { echo "Webhook processing did not complete" >&2; exit 1; }
+          echo "PASS: n8n webhook -> authenticated FastAPI triage -> PostgreSQL"
       - name: Diagnose failed services and remove disposable data
         if: always()
         run: |
