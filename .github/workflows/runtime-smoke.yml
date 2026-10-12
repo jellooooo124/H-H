@@ -162,6 +162,41 @@ jobs:
           else:
               raise AssertionError("Check-in did not reach TRIAGED through n8n")
           PY
+      - name: Seed real fail-closed clinician review using synthetic-only API calls
+        run: |
+          set -euo pipefail
+          # No fake model or direct database patch. The real app returns 503
+          # and must create a protected clinician review task.
+          docker compose exec -T api python - <<'PY'
+          import os
+          import time
+          import jwt
+          import httpx
+          key=os.environ["APP_TOKEN_SECRET"]
+          def bearer(role):
+              claims={"iss":"hah-course-demo","sub":"ci-patient" if role=="patient" else "ci-clinician",
+                      "role":role,"exp":int(time.time())+900}
+              if role=="patient": claims["patient_ref"]="DEMO-P001"
+              return {"Authorization":"Bearer "+jwt.encode(claims,key,algorithm="HS256")}
+          case_id="HHC-CASE-CI-REVIEW"
+          with httpx.Client(timeout=25) as h:
+              r=h.post("http://127.0.0.1:8000/v1/intake",headers=bearer("patient"),
+                  json={"case_id":case_id,"patient_ref":"DEMO-P001",
+                        "is_synthetic":True,"consent_for_demo_processing":True,
+                        "vitals":{},"symptoms":{},
+                        "meal_text":"CI synthetic case. No actual patient."})
+              assert r.status_code==202,(r.status_code,r.text[:180])
+              headers={"X-Internal-Key":os.environ["APP_INTERNAL_KEY"]}
+              r=h.post("http://127.0.0.1:8000/internal/start",headers=headers,json={"case_id":case_id})
+              assert r.status_code==200,(r.status_code,r.text[:180])
+              # Provider credentials deliberately absent; application must fail closed.
+              r=h.post("http://127.0.0.1:8000/internal/plan",headers=headers,json={"case_id":case_id})
+              assert r.status_code==503,(r.status_code,r.text[:180])
+              r=h.get("http://127.0.0.1:8000/v1/cases/"+case_id,headers=bearer("clinician"))
+              assert r.status_code==200,(r.status_code,r.text[:180])
+              assert r.json()["status"]=="TECHNICAL_REVIEW",r.json()["status"]
+          print("PASS: true AI-unavailable fail-closed API -> clinical review task")
+          PY
       - name: Run real Chromium browser clinician-patient message loop
         run: |
           set -euo pipefail
