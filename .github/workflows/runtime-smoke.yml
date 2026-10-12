@@ -96,7 +96,7 @@ jobs:
           docker compose exec -T n8n n8n import:workflow --input=/tmp/hah_ci_09.json
           # n8n CLI uses the same disposable volume, but does not race the server process.
           docker compose stop n8n
-          docker compose run --rm --no-deps n8n n8n execute --id=ci-audit-readiness
+          docker compose run --rm --no-deps n8n execute --id=ci-audit-readiness
       - name: Diagnose failed services and remove disposable data
         if: always()
         run: |
