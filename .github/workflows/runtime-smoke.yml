@@ -90,6 +90,13 @@ jobs:
           original=json.loads(Path('workflows/09_database_auth_audit_health.json').read_text())
           original['id']='ci-audit-readiness'
           original['name']='CI - PostgreSQL Audit Execution (ephemeral)'
+          # The server CLI requires an Execute Workflow Trigger rather than
+          # a Schedule Trigger; only this ephemeral CI copy is adapted.
+          trigger=original['nodes'][0]
+          assert trigger['type']=='n8n-nodes-base.scheduleTrigger'
+          trigger['type']='n8n-nodes-base.executeWorkflowTrigger'
+          trigger['typeVersion']=1.1
+          trigger['parameters']={}
           Path('/tmp/hah_ci_09.json').write_text(json.dumps(original))
           PY
           docker compose cp /tmp/hah_ci_09.json n8n:/tmp/hah_ci_09.json
