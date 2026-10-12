@@ -51,4 +51,4 @@ docker compose up -d --build
 
 現有各階段研究及重構文件保留於 `docs/` 作為技術歷史，但不再以課程評分標準決定 Portfolio 的目標與完成條件。
 
-[英文 README](README.md) · [Portfolio 驗收與缺口](docs/PORTFOLIO_ACCEPTANCE.md) · [Mac 2017 遠端部署說明](docs/MAC_AIR_2017_DEPLOYMENT_V33.md) · [安全限制](docs/SECURITY_LIMITATIONS.md)
+[英文 README](README.md) · [Portfolio 驗收與缺口](docs/PORTFOLIO_ACCEPTANCE.md) · [Mac 2017 私人遠端部署](docs/PRIVATE_REMOTE_DEMO.md) · [安全限制](docs/SECURITY_LIMITATIONS.md)
