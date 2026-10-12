@@ -1,0 +1,5 @@
+{
+  "source_id":"DEMO-DM-001", "title":"Educational Home Monitoring: Diabetes", "version":"2026-10-demo-1",
+  "approved_for_demo":true, "clinical_use_approved":false,
+  "content":"SYNTHETIC COURSE GUIDELINE, NOT CLINICAL INSTRUCTIONS. Look at the recorded glucose measurement, measurement time, symptoms and documentation quality. A food image does not directly establish carbohydrate amount or medication requirements. For a person with concurrent heart failure, automatically generated fluid recommendations can be inconsistent; require clinician review of all intervention drafts."
+}

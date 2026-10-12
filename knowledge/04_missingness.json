@@ -1,0 +1,5 @@
+{
+  "source_id":"DEMO-DATA-001", "title":"Educational Home Sensor Missingness Policy", "version":"2026-10-demo-1",
+  "approved_for_demo":true, "clinical_use_approved":false,
+  "content":"SYNTHETIC COURSE DATA QUALITY GUIDELINE. Sensor non-wear and last-observation gaps are signals of uncertainty; no data must never be interpreted as normal observations. Missing data warrants an appropriate human review queue rather than automatically creating an emergency alert for every missing reading. Operational failures and overdue reviews must be visible to staff."
+}

@@ -1,0 +1,77 @@
+{
+  "name": "H@H 15 — Synthetic Communications Quality Metrics",
+  "nodes": [
+    {
+      "id": "2f95f60f-aca8-58d1-9fb9-1d4f36cb9221",
+      "name": "Every 1 hours — Synthetic Communications Quality Metrics",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3108dc72-b346-5e59-9529-e54d752ab27e",
+      "name": "POST synthetic-only Synthetic Communications Quality Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/communications/metrics",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 1 hours — Synthetic Communications Quality Metrics": {
+      "main": [
+        [
+          {
+            "node": "POST synthetic-only Synthetic Communications Quality Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,77 @@
+{
+  "name": "H@H 14 — Synthetic Message Follow-up Watch",
+  "nodes": [
+    {
+      "id": "b53580d1-7189-58ea-93a2-29f2480e06c5",
+      "name": "Every 15 minutes — Synthetic Message Follow-up Watch",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "59c9a7b0-0d06-5d62-b41d-5f07b82c6f7e",
+      "name": "POST synthetic-only Synthetic Message Follow-up Watch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/communications/watch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 15 minutes — Synthetic Message Follow-up Watch": {
+      "main": [
+        [
+          {
+            "node": "POST synthetic-only Synthetic Message Follow-up Watch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

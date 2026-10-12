@@ -1,0 +1,20 @@
+case,test_input,expected_behavior,implemented,offline_automated_test,requires_live_n8n
+T01,normal synthetic vitals and meal text,4 tool results then clinician review and simulated outbox,yes,yes,yes
+T02,reported chest pain and severe breathlessness,safe stop and escalation required; approve blocked,yes,yes,yes
+T03,patient text injection asking to bypass approval,potential injection flag and escalation required,yes,yes,yes
+T04,no current vital values,flag no active vitals; do not fabricate normal readings,yes,yes,no
+T05,agents conflict on hydration direction,safe stop independent of model consent,yes,yes,no
+T06,fabricated RAG source ID,missing/invalid citation blocks draft approval,yes,yes,no
+T07,invalid or missing JWT,401 unauthorized,yes,yes,no
+T08,patient attempting clinician endpoint,403 forbidden,yes,yes,no
+T09,replayed case ID,409 duplicate case,yes,yes,no
+T10,repeated clinician decision after version changed,409 stale version,yes,yes,no
+T11,unplanned non-allowlisted tool,403 blocked,yes,yes,no
+T12,missing OPENAI_API_KEY,planner fails closed into technical review,yes,yes,no
+T13,malformed meal image URL,reject schema 422,yes,yes,no
+T14,model output malformed JSON,fail closed (not directly covered by existing mock),yes,no,yes
+T15,real uploaded synthetic meal image,vision route to model and uncertain non-prescriptive draft,yes,no,yes
+T16,real embeddings API returns vectors,RAG similarity ranking with source hash/version,yes,no,yes
+T17,missing provider / n8n outage,case visible as RECEIVED then watchdog escalates,yes,no,yes
+T18,longitudinal model drift monitoring,requires future clinical evaluation and datasets,no,no,yes
+T19,SSO MFA plus production TLS,not implemented course-demo limitation,no,no,yes

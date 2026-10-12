@@ -1,0 +1,5 @@
+{
+  "source_id":"DEMO-HF-001", "title":"Educational Home Monitoring: Heart Failure", "version":"2026-10-demo-1",
+  "approved_for_demo":true, "clinical_use_approved":false,
+  "content":"SYNTHETIC COURSE GUIDELINE, NOT CLINICAL INSTRUCTIONS. Review longitudinal weight entries, symptom self-reports and timestamps together. Do not attribute a change in weight to meal sodium based only on a food photograph. Where acute symptoms are reported, create a priority review for a qualified clinician. Do not suggest dose or fluid modifications automatically. Record uncertainty explicitly."
+}

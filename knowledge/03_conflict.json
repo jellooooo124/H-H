@@ -1,0 +1,5 @@
+{
+  "source_id":"DEMO-MULTI-001", "title":"Educational Multimorbidity Conflict Policy", "version":"2026-10-demo-1",
+  "approved_for_demo":true, "clinical_use_approved":false,
+  "content":"SYNTHETIC COURSE SAFETY POLICY. Contradictory action proposals from different disease-focused agents must be blocked from patient delivery. Specially, hydration direction recommendations may conflict between the heart failure and diabetes contexts. A deterministic, independent safety rule must block that conflict and route it to clinical review. LLM consensus alone is insufficient authorization."
+}

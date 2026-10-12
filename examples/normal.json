@@ -1,0 +1,9 @@
+{
+  "case_id":"HHC-CASE-0001", "patient_ref":"DEMO-P001",
+  "is_synthetic":true, "consent_for_demo_processing":true,
+  "vitals":{"weight_kg":71.1,"weight_prev_kg":70.9,"glucose_mg_dl":124,
+    "heart_rate_bpm":78,"spo2_pct":97,"measured_at":"2026-10-11T07:00:00+08:00",
+    "last_sensor_at":"2026-10-11T07:00:00+08:00"},
+  "symptoms":{"chest_pain":false,"severe_breathlessness":false,"fainting":false,"confusion":false,"swelling":false,"notes":"No new concerns recorded."},
+  "meal_text":"Rice, vegetables and fish, portion uncertain.","meal_image_data_url":null
+}

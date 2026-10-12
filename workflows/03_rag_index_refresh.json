@@ -1,0 +1,68 @@
+{
+  "name": "H@H 03 — Approved RAG Index Refresh",
+  "nodes": [
+    {
+      "id": "05c0ba72-6a5c-576a-81bf-2dd76d5cd5b1",
+      "name": "Manual Index Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "61a695b3-88d2-5889-86b4-81233645e3a7",
+      "name": "Index Approved Guideline Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/knowledge/reindex",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Index Trigger": {
+      "main": [
+        [
+          {
+            "node": "Index Approved Guideline Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

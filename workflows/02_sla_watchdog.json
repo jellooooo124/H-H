@@ -1,0 +1,77 @@
+{
+  "name": "H@H 02 — Overdue Cases / Human Escalation",
+  "nodes": [
+    {
+      "id": "509b1bf1-4a9c-5f42-b1d8-37c066924a78",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "635c4e0a-407a-5b45-9d68-4c09018002dd",
+      "name": "Fail-Closed Overdue Escalation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/watchdog",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fail-Closed Overdue Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

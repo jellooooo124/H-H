@@ -1,0 +1,244 @@
+{
+  "name": "H@H 01 — Dynamic Multi-Agent Planner + Tools + Clinical Gate",
+  "nodes": [
+    {
+      "id": "0d17b0d1-d1de-5a9a-9c38-cf1d6efb0039",
+      "name": "Case ID Webhook (Internal Only)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        250
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hah-case-intake",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "253f231a-2dce-50b4-820b-56d35908be99",
+      "name": "Start Case State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/start",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({case_id: $json.body.case_id}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "39b6484a-d179-5f7c-9c19-73f36626dea0",
+      "name": "Planner (Real LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/plan",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({case_id: $json.case_id}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "1222cc29-e9ee-552f-afa7-194f29475dca",
+      "name": "Finish When All Tools Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        250
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "done-condition",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d8d3b333-e374-514d-bd03-e67f3de8ec01",
+      "name": "Execute Bounded Agent Tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/tool",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({case_id: $json.case_id, tool: $json.next_tool}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "bbacced0-3ea5-5730-a922-721f0b32f487",
+      "name": "Synthesize and Safety Gate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/finalize",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({case_id: $json.case_id}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Case ID Webhook (Internal Only)": {
+      "main": [
+        [
+          {
+            "node": "Start Case State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Case State": {
+      "main": [
+        [
+          {
+            "node": "Planner (Real LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planner (Real LLM)": {
+      "main": [
+        [
+          {
+            "node": "Finish When All Tools Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finish When All Tools Complete": {
+      "main": [
+        [
+          {
+            "node": "Synthesize and Safety Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Bounded Agent Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Bounded Agent Tool": {
+      "main": [
+        [
+          {
+            "node": "Planner (Real LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

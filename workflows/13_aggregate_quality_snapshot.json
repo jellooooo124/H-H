@@ -1,0 +1,77 @@
+{
+  "name": "H@H 13 — Aggregate Quality Snapshot",
+  "nodes": [
+    {
+      "id": "f59d4bd5-16e6-53f9-9500-83dd4d23f92a",
+      "name": "Hourly — Aggregate Quality Snapshot",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        160
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3e32ffd7-10ef-55df-ba5f-eed8e9f749b4",
+      "name": "POST aggregate-only Aggregate Quality Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/ops/quality-snapshot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hourly — Aggregate Quality Snapshot": {
+      "main": [
+        [
+          {
+            "node": "POST aggregate-only Aggregate Quality Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

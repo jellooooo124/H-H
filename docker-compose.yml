@@ -1,0 +1,98 @@
+name: hah-care-coordination-research
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_INTERNAL_KEY: ${APP_INTERNAL_KEY:?Missing APP_INTERNAL_KEY}
+      APP_TOKEN_SECRET: ${APP_TOKEN_SECRET:?Missing APP_TOKEN_SECRET}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Missing APP_ENCRYPTION_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4.1-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/hah-case-intake}
+      DB_PATH: /appdata/cases.db
+      DATABASE_URL: postgresql://hah_demo:${POSTGRES_PASSWORD:?Missing POSTGRES_PASSWORD}@postgres:5432/hah_demo
+      AUTH_MODE: ${AUTH_MODE:-demo}
+      APP_ADMIN_KEY: ${APP_ADMIN_KEY:?Missing APP_ADMIN_KEY}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      OIDC_CLINICIAN_GROUP: ${OIDC_CLINICIAN_GROUP:-hah-clinician}
+      OIDC_PATIENT_GROUP: ${OIDC_PATIENT_GROUP:-hah-patient}
+      KNOWLEDGE_DIR: /srv/knowledge
+      DEMO_MODE: 'true'
+    volumes:
+      - cases_data:/appdata
+    ports:
+      - '127.0.0.1:8000:8000'
+    networks: [private]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - '127.0.0.1:8080:80'
+    depends_on:
+      - api
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: hah_demo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Missing POSTGRES_PASSWORD}
+      POSTGRES_DB: hah_demo
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hah_demo -d hah_demo']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.42.6
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Missing N8N_ENCRYPTION_KEY}
+      HAH_INTERNAL_KEY: ${APP_INTERNAL_KEY:?Missing APP_INTERNAL_KEY}
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      N8N_SECURE_COOKIE: 'false'
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_PERSONALIZATION_ENABLED: 'false'
+      N8N_EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
+      N8N_EXECUTIONS_DATA_SAVE_ON_ERROR: none
+      N8N_EXECUTIONS_DATA_SAVE_ON_PROGRESS: 'false'
+      EXECUTIONS_DATA_PRUNE: 'true'
+      EXECUTIONS_DATA_MAX_AGE: 24
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'true'
+      N8N_COMMUNITY_PACKAGES_ENABLED: 'false'
+    ports:
+      - '127.0.0.1:5678:5678'
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+networks:
+  private:
+    internal: false  # n8n requires outbound access for optional updates; production: egress policies
+volumes:
+  cases_data:
+  n8n_data:
+  pg_data:

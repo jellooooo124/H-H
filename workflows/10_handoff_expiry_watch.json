@@ -1,0 +1,77 @@
+{
+  "name": "H@H 10 — Pending Handoff Expiry Watch",
+  "nodes": [
+    {
+      "id": "564a4840-276c-506e-a1f3-48f88101c0bd",
+      "name": "Every 5 Minutes — Pending Handoff Expiry Watch",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f8fdd5d6-85ea-5913-a923-9d6045972463",
+      "name": "Check Pending Handoff Expiry Watch (ID-only)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/ops/handoff-watch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes — Pending Handoff Expiry Watch": {
+      "main": [
+        [
+          {
+            "node": "Check Pending Handoff Expiry Watch (ID-only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

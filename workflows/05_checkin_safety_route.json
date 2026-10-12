@@ -1,0 +1,73 @@
+{
+  "name": "H@H 05 — Checkin Safety Routing (No PHI)",
+  "nodes": [
+    {
+      "id": "a7ff150a-fceb-5ff8-b8bc-891b69f3166f",
+      "name": "Synthetic Checkin Event ID",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hah-checkin-intake",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "d5aa1bd4-7974-577e-8e3d-041844c1a216",
+      "name": "Triage Checkin With Deterministic Safety",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        250,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/checkin/triage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({event_id: $json.body.event_id}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Synthetic Checkin Event ID": {
+      "main": [
+        [
+          {
+            "node": "Triage Checkin With Deterministic Safety",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

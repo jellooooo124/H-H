@@ -1,0 +1,77 @@
+{
+  "name": "H@H 11 — Orchestration Dispatch Reconciliation",
+  "nodes": [
+    {
+      "id": "d88b51e1-223c-5b3d-9d1e-17a79f4aab91",
+      "name": "Every 10 Minutes — Orchestration Dispatch Reconciliation",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3e96b079-5f93-5ea7-a9f9-d9b7a3a666ab",
+      "name": "Check Orchestration Dispatch Reconciliation (ID-only)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/ops/dispatch-health",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 10 Minutes — Orchestration Dispatch Reconciliation": {
+      "main": [
+        [
+          {
+            "node": "Check Orchestration Dispatch Reconciliation (ID-only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

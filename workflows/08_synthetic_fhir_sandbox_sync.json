@@ -1,0 +1,77 @@
+{
+  "name": "H@H 08 — Synthetic FHIR R4 Sandbox Sync (No EHR Connected)",
+  "nodes": [
+    {
+      "id": "30e27a19-fde8-52f4-ad90-46da947cf826",
+      "name": "Every 12 Hours - Synthetic FHIR Sync",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c80a5796-90f0-5362-b802-b8fcc0f4778f",
+      "name": "Sync Allowlisted Synthetic FHIR Observations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        270,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/fhir/sandbox-sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 12 Hours - Synthetic FHIR Sync": {
+      "main": [
+        [
+          {
+            "node": "Sync Allowlisted Synthetic FHIR Observations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

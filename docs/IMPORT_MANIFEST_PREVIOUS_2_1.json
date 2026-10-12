@@ -1,0 +1,39 @@
+{
+  "version": "2.1",
+  "workflows": [
+    {
+      "file": "01_agentic_case_loop.json",
+      "sha256": "c47612ab30f8aa157fef2e85c08f7674a4345184b77d156dc5a97c52c390961a"
+    },
+    {
+      "file": "02_sla_watchdog.json",
+      "sha256": "297e8512770b74a966811dbe78097aa29f8313a260749916479c8d1adfa5efb2"
+    },
+    {
+      "file": "03_rag_index_refresh.json",
+      "sha256": "6ef407473690c7f23b1f0e32762e8ec798e3a146df386d1dc49aee6674ad313c"
+    },
+    {
+      "file": "04_redacted_error_handler.json",
+      "sha256": "d37f1979852df19f97e247007f8f27051dc790d131746203e72efe6049e8d0b3"
+    },
+    {
+      "file": "05_checkin_safety_route.json",
+      "sha256": "2bb5631e9f67dba998d73a4ee4c9ddd9908a4e9488450030a580c0e180f2fca8"
+    },
+    {
+      "file": "06_coordination_reconciler.json",
+      "sha256": "3c5787b3989025878eb3536bf4be91a2535b0e01d338554aa5d8492bd3fbd33c"
+    },
+    {
+      "file": "07_pending_recovery.json",
+      "sha256": "7028c55d513c07150bc34e11376a29b60fe18266758e6074d0d47def4fe21af4"
+    },
+    {
+      "file": "08_synthetic_fhir_sandbox_sync.json",
+      "sha256": "77ef474ba7837ce7cf4b0ed1b2e4fbd6263f8954a869978d0e68be2eaa4942c2"
+    }
+  ],
+  "import_instruction": "n8n Editor -> Import from File, one workflow JSON at a time",
+  "synthetic_only": true
+}

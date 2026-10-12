@@ -1,0 +1,77 @@
+{
+  "name": "H@H 07 — Database-backed Dispatch Replay",
+  "nodes": [
+    {
+      "id": "975f4a1d-048e-5035-ae2e-ce072ba78178",
+      "name": "Every 3 Minutes — Retry DB-Backed Events",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b7a73067-04f4-540e-8eb9-a18e75dd058d",
+      "name": "Drain Bounded Durable Dispatch Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        250,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/ops/dispatch-drain",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 3 Minutes — Retry DB-Backed Events": {
+      "main": [
+        [
+          {
+            "node": "Drain Bounded Durable Dispatch Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

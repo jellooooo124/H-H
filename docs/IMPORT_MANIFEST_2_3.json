@@ -1,0 +1,59 @@
+{
+  "version": "2.3.0",
+  "synthetic_only": true,
+  "n8n_import_type": "one JSON file per workflow",
+  "import_instructions": "Unzip and import individual .json files via n8n Import from File. Do not import ZIP directly. Import workflows inactive.",
+  "upgrade_from_2_2": "Deactivate the old workflow 07 and replace it with updated 07; add 10 and 11. Keep 01-06 and 08-09 unchanged.",
+  "modified_or_added_since_2_2": [
+    "07_pending_recovery.json",
+    "10_handoff_expiry_watch.json",
+    "11_dispatch_integrity_watch.json"
+  ],
+  "workflows": [
+    {
+      "file": "01_agentic_case_loop.json",
+      "sha256": "c47612ab30f8aa157fef2e85c08f7674a4345184b77d156dc5a97c52c390961a"
+    },
+    {
+      "file": "02_sla_watchdog.json",
+      "sha256": "297e8512770b74a966811dbe78097aa29f8313a260749916479c8d1adfa5efb2"
+    },
+    {
+      "file": "03_rag_index_refresh.json",
+      "sha256": "6ef407473690c7f23b1f0e32762e8ec798e3a146df386d1dc49aee6674ad313c"
+    },
+    {
+      "file": "04_redacted_error_handler.json",
+      "sha256": "d37f1979852df19f97e247007f8f27051dc790d131746203e72efe6049e8d0b3"
+    },
+    {
+      "file": "05_checkin_safety_route.json",
+      "sha256": "2bb5631e9f67dba998d73a4ee4c9ddd9908a4e9488450030a580c0e180f2fca8"
+    },
+    {
+      "file": "06_coordination_reconciler.json",
+      "sha256": "3c5787b3989025878eb3536bf4be91a2535b0e01d338554aa5d8492bd3fbd33c"
+    },
+    {
+      "file": "07_pending_recovery.json",
+      "sha256": "3ffd79419c9ca87a6811f3f47656cff30fc1da1a34e79f9db81cf79367da68f1"
+    },
+    {
+      "file": "08_synthetic_fhir_sandbox_sync.json",
+      "sha256": "77ef474ba7837ce7cf4b0ed1b2e4fbd6263f8954a869978d0e68be2eaa4942c2"
+    },
+    {
+      "file": "09_database_auth_audit_health.json",
+      "sha256": "6cd4395573aa06e7ba6278aad9037a768e758e67951a66d03949c52b1ca1ac24"
+    },
+    {
+      "file": "10_handoff_expiry_watch.json",
+      "sha256": "b9a92a24fb9d81da405e652a3b0a587344ca4fa57b69414475c12d3380dab281"
+    },
+    {
+      "file": "11_dispatch_integrity_watch.json",
+      "sha256": "f8034428de73d71f62f42d72bb560025899aa14cb1387f48a4fe91bdce2f8bdd"
+    }
+  ],
+  "runtime_validation": "Static JSON only; real n8n import/runtime not available in the current environment."
+}

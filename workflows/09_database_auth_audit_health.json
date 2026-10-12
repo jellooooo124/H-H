@@ -1,0 +1,77 @@
+{
+  "name": "H@H 09 — PostgreSQL and Audit Chain Readiness (Synthetic)",
+  "nodes": [
+    {
+      "id": "66caee76-fcce-58e9-8366-8095b777c4fe",
+      "name": "Hourly Synthetic Datastore Audit",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        0,
+        80
+      ],
+      "typeVersion": 1.2,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1031e359-573a-54cb-80b7-60dd416080e7",
+      "name": "Verify DB Connectivity and Audit HMAC Chain",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        270,
+        80
+      ],
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/ops/audit-health",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hourly Synthetic Datastore Audit": {
+      "main": [
+        [
+          {
+            "node": "Verify DB Connectivity and Audit HMAC Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

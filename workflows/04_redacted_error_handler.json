@@ -1,0 +1,68 @@
+{
+  "name": "H@H 04 — Operational Error (No PHI)",
+  "nodes": [
+    {
+      "id": "85bb7475-ae2d-5196-b26c-c191dcbeeb2d",
+      "name": "Execution Error (No PHI Forwarded)",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f4704592-2ea1-5595-a1b3-8b19677e0a43",
+      "name": "Redacted Error Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow_name: \"n8n\", error_code: \"EXECUTION_FAILED\" }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execution Error (No PHI Forwarded)": {
+      "main": [
+        [
+          {
+            "node": "Redacted Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

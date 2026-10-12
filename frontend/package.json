@@ -1,0 +1,18 @@
+{
+  "name": "hah-clinician-demo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "@vitejs/plugin-vue": "^5.2.0"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "name": "H@H 12 — Synthetic Engagement Watch",
+  "nodes": [
+    {
+      "id": "1e06b096-2f40-5589-9113-601473125fc1",
+      "name": "Hourly — Synthetic Engagement Watch",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        160
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "eae67f14-a465-5c13-8191-6748222b7526",
+      "name": "POST aggregate-only Synthetic Engagement Watch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/internal/engagement/watch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Key",
+              "value": "={{ $env.HAH_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 45000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hourly — Synthetic Engagement Watch": {
+      "main": [
+        [
+          {
+            "node": "POST aggregate-only Synthetic Engagement Watch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

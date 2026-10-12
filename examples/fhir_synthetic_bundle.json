@@ -1,0 +1,106 @@
+{
+  "patient_ref": "DEMO-P001",
+  "is_synthetic": true,
+  "bundle": {
+    "resourceType": "Bundle",
+    "type": "collection",
+    "entry": [
+      {
+        "resource": {
+          "resourceType": "Observation",
+          "id": "weight-20261011-manual",
+          "status": "final",
+          "subject": {
+            "reference": "Patient/DEMO-P001"
+          },
+          "code": {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "29463-7"
+              }
+            ]
+          },
+          "effectiveDateTime": "2026-10-11T12:52:47Z",
+          "valueQuantity": {
+            "value": 70.3,
+            "system": "http://unitsofmeasure.org",
+            "code": "kg"
+          }
+        }
+      },
+      {
+        "resource": {
+          "resourceType": "Observation",
+          "id": "glucose-20261011-manual",
+          "status": "final",
+          "subject": {
+            "reference": "Patient/DEMO-P001"
+          },
+          "code": {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "2339-0"
+              }
+            ]
+          },
+          "effectiveDateTime": "2026-10-11T12:52:47Z",
+          "valueQuantity": {
+            "value": 124.0,
+            "system": "http://unitsofmeasure.org",
+            "code": "mg/dL"
+          }
+        }
+      },
+      {
+        "resource": {
+          "resourceType": "Observation",
+          "id": "hr-20261011-manual",
+          "status": "final",
+          "subject": {
+            "reference": "Patient/DEMO-P001"
+          },
+          "code": {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "8867-4"
+              }
+            ]
+          },
+          "effectiveDateTime": "2026-10-11T12:52:47Z",
+          "valueQuantity": {
+            "value": 82.0,
+            "system": "http://unitsofmeasure.org",
+            "code": "/min"
+          }
+        }
+      },
+      {
+        "resource": {
+          "resourceType": "Observation",
+          "id": "spo2-20261011-manual",
+          "status": "final",
+          "subject": {
+            "reference": "Patient/DEMO-P001"
+          },
+          "code": {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "59408-5"
+              }
+            ]
+          },
+          "effectiveDateTime": "2026-10-11T12:52:47Z",
+          "valueQuantity": {
+            "value": 97.0,
+            "system": "http://unitsofmeasure.org",
+            "code": "%"
+          }
+        }
+      }
+    ]
+  }
+}
