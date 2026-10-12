@@ -12,7 +12,7 @@ permissions:
 jobs:
   full-stack:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Create disposable synthetic-only secrets
@@ -162,6 +162,67 @@ jobs:
           else:
               raise AssertionError("Check-in did not reach TRIAGED through n8n")
           PY
+      - name: Run real Chromium browser clinician-patient message loop
+        run: |
+          set -euo pipefail
+          # The tokens only exist for this short-lived synthetic-only runner.
+          docker compose exec -T api python - <<'PY' > /tmp/hah_browser_tokens.json
+          import json
+          import os
+          import time
+          import jwt
+          secret=os.environ["APP_TOKEN_SECRET"]
+          base={"iss":"hah-course-demo","exp":int(time.time())+900}
+          clinician=jwt.encode({**base,"sub":"ci-clinician","role":"clinician"},secret,algorithm="HS256")
+          patient=jwt.encode({**base,"sub":"ci-patient","role":"patient","patient_ref":"DEMO-P001"},secret,algorithm="HS256")
+          print(json.dumps({"clinician":clinician,"patient":patient}))
+          PY
+          chmod 600 /tmp/hah_browser_tokens.json
+          npm install --prefix tests/browser --no-audit --no-fund
+          ./tests/browser/node_modules/.bin/playwright install --with-deps chromium
+          HAH_BROWSER_TOKENS_PATH=/tmp/hah_browser_tokens.json \
+            node tests/browser/closed_loop.mjs
+      - name: Prove acknowledged communication and audit persist through database restart
+        run: |
+          set -euo pipefail
+          docker compose exec -T api python - <<'PY'
+          from app.main import app
+          row=app.state.store.db.execute(
+              "SELECT state FROM in_app_communications WHERE patient_ref=? ORDER BY created_at DESC LIMIT 1",
+              ("DEMO-P001",)
+          ).fetchone()
+          assert row and row["state"]=="ACKNOWLEDGED", row
+          assert app.state.store.verify_audit() is True
+          print("Before restart: ACKNOWLEDGED communication and intact audit chain")
+          PY
+          docker compose restart postgres
+          for i in $(seq 1 45); do
+            if docker compose exec -T postgres pg_isready -U hah_demo -d hah_demo >/dev/null; then break; fi
+            sleep 2
+          done
+          docker compose restart api
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8000/health >/tmp/hah_after_restart.json; then break; fi
+            sleep 2
+          done
+          docker compose exec -T api python - <<'PY'
+          from app.main import app
+          row=app.state.store.db.execute(
+              "SELECT state FROM in_app_communications WHERE patient_ref=? ORDER BY created_at DESC LIMIT 1",
+              ("DEMO-P001",)
+          ).fetchone()
+          assert row and row["state"]=="ACKNOWLEDGED", row
+          assert app.state.store.verify_audit() is True
+          print("PASS: durable ACKNOWLEDGED message and HMAC audit after PostgreSQL/API restart")
+          PY
+      - name: Collect browser screenshots on failure only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-browser-failure
+          path: tests/browser/artifacts/
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Diagnose failed services and remove disposable data
         if: always()
         run: |
