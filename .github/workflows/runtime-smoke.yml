@@ -3,6 +3,7 @@ name: Full stack disposable Docker Compose smoke
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -88,8 +89,8 @@ jobs:
           from pathlib import Path
           data=json.loads(Path('workflows/05_checkin_safety_route.json').read_text())
           data['id']='ci-checkin-route'
-          # Pin the webhook identifier; CLI imports without one can register a long path.
-          data['nodes'][0]['webhookId']='2c6818b6-e356-45c3-848e-d3e5e52900f7'
+          # Verify that the distributed workflow itself has the registered webhook ID.
+          assert data['nodes'][0]['webhookId']=='2c6818b6-e356-45c3-848e-d3e5e52900f7'
           data['name']='CI - Synthetic Webhook Test'
           Path('/tmp/ci_checkin_flow.json').write_text(json.dumps(data))
           PY
