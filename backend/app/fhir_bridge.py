@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import sqlite3
 import time
 from datetime import datetime, timezone
 from .coordination import ALLOWED_CODES, timestamp
@@ -78,19 +77,13 @@ def normalise_resource(resource, patient_ref):
 
 
 class FHIRBridge:
-    def __init__(self, store, coordinator):
+    def __init__(self, store, coordinator, repository=None):
         self.s=store
         self.coordinator=coordinator
-        with self.s._lock:
-            self.s.db.executescript('''
-                CREATE TABLE IF NOT EXISTS fhir_imports (
-                  resource_id TEXT NOT NULL, patient_ref TEXT NOT NULL,
-                  fingerprint TEXT NOT NULL, observation_event TEXT NOT NULL,
-                  imported_at REAL NOT NULL,
-                  PRIMARY KEY(patient_ref,resource_id),
-                  UNIQUE(observation_event)
-                );
-            ''')
+        if repository is None:
+            from .infrastructure.persistence.fhir_repository import SqlFhirRepository
+            repository=SqlFhirRepository(store)
+        self.repo=repository
 
     def import_bundle(self, patient_ref, bundle, actor='clinician'):
         if not isinstance(patient_ref,str) or not PATIENT_REF.fullmatch(patient_ref):
@@ -111,26 +104,18 @@ class FHIRBridge:
             normalized.append(r)
         added=[]; skipped=[]
         # All-or-nothing DB writes, including derived observations and audit entries.
-        with self.s._lock:
-            self.s.db.execute('BEGIN IMMEDIATE')
-            try:
-                for r in normalized:
-                    existing=self.s.db.execute('SELECT fingerprint FROM fhir_imports WHERE patient_ref=? AND resource_id=?',
-                                               (patient_ref,r['id'])).fetchone()
-                    if existing:
-                        if existing['fingerprint']!=r['hash']:
-                            raise FHIRConflict('FHIR resource already imported with different content')
-                        skipped.append(r['id'])
-                        continue
-                    self.coordinator.add_observation(patient_ref,r['event_id'],r['internal_code'],r['value'],r['unit'],r['taken_at'])
-                    self.s.db.execute('INSERT INTO fhir_imports VALUES(?,?,?,?,?)',
-                                      (r['id'],patient_ref,r['hash'],r['event_id'],time.time()))
-                    added.append(r['id'])
-                self.s.audit('FHIR','FHIR_BUNDLE_IMPORT',actor,{'added_count':len(added),'skipped_count':len(skipped),'synthetic':True})
-                self.s.db.execute('COMMIT')
-            except Exception:
-                self.s.db.execute('ROLLBACK')
-                raise
+        with self.s.transaction():
+            for r in normalized:
+                existing=self.repo.fingerprint(patient_ref,r['id'])
+                if existing is not None:
+                    if existing!=r['hash']:
+                        raise FHIRConflict('FHIR resource already imported with different content')
+                    skipped.append(r['id'])
+                    continue
+                self.coordinator.add_observation(patient_ref,r['event_id'],r['internal_code'],r['value'],r['unit'],r['taken_at'])
+                self.repo.record_import(r['id'],patient_ref,r['hash'],r['event_id'])
+                added.append(r['id'])
+            self.s.audit('FHIR','FHIR_BUNDLE_IMPORT',actor,{'added_count':len(added),'skipped_count':len(skipped),'synthetic':True})
         return {'patient_ref':patient_ref,'imported':len(added),'unchanged':len(skipped),
                 'resource_ids':added,'synthetic_only':True}
 
@@ -138,9 +123,7 @@ class FHIRBridge:
         if not isinstance(patient_ref,str) or not PATIENT_REF.fullmatch(patient_ref):
             raise ValueError('DEMO patient required')
         if not isinstance(limit,int) or not 1<=limit<=100:raise ValueError('Limit 1-100 required')
-        with self.s._lock:
-            rows=self.s.db.execute('''SELECT o.event_id,o.code,o.taken_at,o.payload_cipher
-                FROM observations o WHERE o.patient_ref=? ORDER BY o.taken_at DESC LIMIT ?''',(patient_ref,limit)).fetchall()
+        rows=self.repo.observation_rows(patient_ref,limit)
         items=[]
         for row in rows:
             code,ucum=REVERSE[row['code']]

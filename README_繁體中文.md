@@ -50,3 +50,11 @@ GitHub 的新 Repository 發布方案請見 `docs/GITHUB_PUBLISH.md`。`workflow
 **59 個原有 API method/path 全部保留；15 個 n8n JSON 與 v3.1 完全一致**，若已匯入舊版，不需要再次匯入，以免重複排程。並新增交易回滾、技術失敗人工任務、逾時升級與原有介面契約測試。驗證為 79 項離線測試通過、1 項 PostgreSQL 實機測試跳過，12/12 合成安全案例通過。
 
 請參閱 [`docs/REFACTOR_3_2.md`](docs/REFACTOR_3_2.md)；舊的照護協調、FHIR、排班與通知模組尚有資料庫邏輯混用，不能宣稱整套系統已完全 Clean Architecture，更不能視為正式臨床系統。
+
+## Clean Architecture v3.3 — Repository 拆分與 Mac 2017 部署
+
+已將 coordination、handoff、durable dispatch、engagement、FHIR 和 Communications 的 SQL 拆到 `infrastructure/persistence/`，並在 composition root 注入。原有 59 API 路由和 15 條 n8n JSON 不變；全部服務仍只限合成資料。
+
+詳見 [`docs/REFACTOR_3_3.md`](docs/REFACTOR_3_3.md) 與 [`docs/MAC_AIR_2017_DEPLOYMENT_V33.md`](docs/MAC_AIR_2017_DEPLOYMENT_V33.md)。本環境未完成 PostgreSQL 實機 / Docker / n8n 執行驗收。
+
+**v3.3 驗證：** `PYTHONPATH=backend pytest -q` 為 86 通過、1 跳過；靜態 n8n 15/15、合成安全案例 12/12。沒有進行 Docker／PostgreSQL 實機與多 worker 併發驗收。詳見 [`docs/RELEASE_VALIDATION_3_3.md`](docs/RELEASE_VALIDATION_3_3.md)。

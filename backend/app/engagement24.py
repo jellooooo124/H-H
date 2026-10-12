@@ -5,35 +5,19 @@ Alerts are READ-ONLY views of care tasks: never suppress, downgrade or merge cli
 Times are UTC. This module is not clinically validated.
 """
 from __future__ import annotations
-import json, statistics, time, uuid
+import statistics, time, uuid
 from datetime import datetime, timezone
 
 class Engagement:
-    def __init__(self,store,coordinator):
+    def __init__(self,store,coordinator,repository=None):
         self.s=store;self.c=coordinator
-        with self.s._lock:
-            self.s.db.executescript('''
-            CREATE TABLE IF NOT EXISTS patient_engagement_preferences(
-              patient_ref TEXT PRIMARY KEY, reminder_opt_in INTEGER NOT NULL,
-              reminder_hour_utc INTEGER NOT NULL, minimum_gap_hours INTEGER NOT NULL,
-              updated_at REAL NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS simulated_prompts(
-              prompt_id TEXT PRIMARY KEY, dedupe_key TEXT NOT NULL UNIQUE,
-              patient_ref TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL,
-              created_at REAL NOT NULL, seen_at REAL
-            );
-            CREATE INDEX IF NOT EXISTS idx_prompt_patient ON simulated_prompts(patient_ref,created_at);
-            CREATE TABLE IF NOT EXISTS operational_snapshots(
-              snapshot_hour TEXT PRIMARY KEY, created_at REAL NOT NULL, payload_json TEXT NOT NULL
-            );
-            ''')
-            self.s.db.execute('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)',(24,time.time()))
+        if repository is None:
+            from .infrastructure.persistence.engagement_repository import SqlEngagementRepository
+            repository=SqlEngagementRepository(store)
+        self.repo=repository
 
     def preferences(self,patient_ref):
-        with self.s._lock:
-            row=self.s.db.execute('''SELECT reminder_opt_in,reminder_hour_utc,minimum_gap_hours,updated_at
-                 FROM patient_engagement_preferences WHERE patient_ref=?''',(patient_ref,)).fetchone()
+        row=self.repo.preference_row(patient_ref)
         if not row:
             return {'patient_ref':patient_ref,'reminder_opt_in':False,'reminder_hour_utc':8,'minimum_gap_hours':24,
                     'default_opt_out':True,'synthetic_only':True}
@@ -45,46 +29,31 @@ class Engagement:
         if not (0<=hour<=23 and 24<=gap<=168):raise ValueError('INVALID_REMINDER_PREFERENCE')
         now=time.time()
         with self.s.transaction():
-            self.s.db.execute('''INSERT INTO patient_engagement_preferences VALUES(?,?,?,?,?)
-               ON CONFLICT(patient_ref) DO UPDATE SET reminder_opt_in=excluded.reminder_opt_in,
-               reminder_hour_utc=excluded.reminder_hour_utc,minimum_gap_hours=excluded.minimum_gap_hours,
-               updated_at=excluded.updated_at''',(patient_ref,int(opt_in),hour,gap,now))
-            if not opt_in:
-                self.s.db.execute('''UPDATE simulated_prompts SET state='CANCELLED'
-                   WHERE patient_ref=? AND state='PENDING_SIMULATED' ''',(patient_ref,))
+            self.repo.save_preferences(patient_ref,opt_in,hour,gap,now)
+            if not opt_in:self.repo.cancel_pending(patient_ref)
             self.s.audit('ENGAGEMENT','PATIENT_PREFERENCE_UPDATED','synthetic-patient',{'opt_in':opt_in})
         return self.preferences(patient_ref)
 
     def prompts(self,patient_ref):
-        with self.s._lock:
-            rows=self.s.db.execute('''SELECT prompt_id,kind,state,created_at,seen_at FROM simulated_prompts
-                  WHERE patient_ref=? ORDER BY created_at DESC LIMIT 30''',(patient_ref,)).fetchall()
-        return [dict(x) for x in rows]
+        return self.repo.prompts(patient_ref)
 
     def mark_seen(self,patient_ref,prompt_id):
         with self.s.transaction():
-            row=self.s.db.execute('SELECT patient_ref,state FROM simulated_prompts WHERE prompt_id=?',(prompt_id,)).fetchone()
+            row=self.repo.prompt(prompt_id)
             if not row or row['patient_ref']!=patient_ref:raise KeyError('PROMPT_NOT_FOUND')
             if row['state']=='SEEN':return {'prompt_id':prompt_id,'state':'SEEN','idempotent':True}
             if row['state']!='PENDING_SIMULATED':raise ValueError('PROMPT_NO_LONGER_ACTIVE')
-            self.s.db.execute('UPDATE simulated_prompts SET state=?,seen_at=? WHERE prompt_id=? AND state=?',
-                              ('SEEN',time.time(),prompt_id,'PENDING_SIMULATED'))
+            if not self.repo.mark_seen(prompt_id,time.time()):raise ValueError('PROMPT_STATE_CONFLICT')
             self.s.audit('ENGAGEMENT','SIMULATED_PROMPT_SEEN','synthetic-patient',{'synthetic':True})
         return {'prompt_id':prompt_id,'state':'SEEN','delivered_to_patient':False}
 
     def dashboard(self,patient_ref,days=7):
         now=time.time(); cutoff=now-days*86400
         trends=self.c.summary(patient_ref,days)
-        with self.s._lock:
-            checkins=self.s.db.execute('''SELECT event_id,status,created_at,triaged_at FROM checkins
-              WHERE patient_ref=? AND created_at>=? ORDER BY created_at DESC LIMIT 20''',(patient_ref,cutoff)).fetchall()
-            plan=self.s.db.execute('''SELECT observation_code,review_gap_hours,active,updated_at
-                   FROM monitoring_plans WHERE patient_ref=?''',(patient_ref,)).fetchone()
-            receipts=self.s.db.execute('''SELECT case_id,acknowledged_at FROM patient_receipts
-                   WHERE patient_ref=? AND acknowledged_at>=? ORDER BY acknowledged_at DESC LIMIT 20''',(patient_ref,cutoff)).fetchall()
+        checkins,plan,receipts=self.repo.dashboard_rows(patient_ref,cutoff)
         return {'patient_ref':patient_ref,'window_days':days,'observations':trends['measurements'],
-                'checkins':[dict(x) for x in checkins], 'monitoring_plan':dict(plan) if plan else None,
-                'simulated_receipts':[dict(x) for x in receipts],
+                'checkins':checkins, 'monitoring_plan':plan,
+                'simulated_receipts':receipts,
                 'reminder_preferences':self.preferences(patient_ref),'in_app_prompts':self.prompts(patient_ref),
                 'warning':'SYNTHETIC ONLY. No diagnoses, recommendations, actual messages, or clinical escalation guarantees.'}
 
@@ -99,19 +68,14 @@ class Engagement:
         hour=datetime.fromtimestamp(now,timezone.utc).hour
         created=0
         with self.s.transaction():
-            prefs=self.s.db.execute('''SELECT p.patient_ref,p.reminder_hour_utc,p.minimum_gap_hours
-                FROM patient_engagement_preferences p JOIN monitoring_plans m ON m.patient_ref=p.patient_ref
-                WHERE p.reminder_opt_in=1 AND m.active=1''').fetchall()
+            prefs=self.repo.opted_in_plans()
             for p in prefs:
                 if hour<p['reminder_hour_utc']:continue
-                latest=self.s.db.execute('SELECT MAX(created_at) AS ts FROM checkins WHERE patient_ref=?',
-                                         (p['patient_ref'],)).fetchone()['ts']
+                latest=self.repo.latest_checkin(p['patient_ref'])
                 if latest is not None and now-latest<p['minimum_gap_hours']*3600:continue
                 key='checkin:'+p['patient_ref']+':'+today
                 pid='PROMPT-'+uuid.uuid4().hex[:16].upper()
-                cur=self.s.db.execute('''INSERT OR IGNORE INTO simulated_prompts VALUES(?,?,?,?,?,?,?)''',
-                   (pid,key,p['patient_ref'],'DAILY_CHECKIN','PENDING_SIMULATED',now,None))
-                if cur.rowcount==1:
+                if self.repo.insert_prompt(pid,key,p['patient_ref'],now):
                     created+=1
                     self.s.audit('ENGAGEMENT','IN_APP_PROMPT_CREATED','scheduler',{'synthetic':True})
         return {'created_count':created,'messages_sent':0,'synthetic_only':True,'personal_data_in_response':False}
@@ -140,13 +104,7 @@ class Engagement:
 
     def evaluation(self,patient_ref,days=7):
         now=time.time();cutoff=now-days*86400
-        with self.s._lock:
-            rows=self.s.db.execute('''SELECT status,priority,created_at,acknowledged_at,resolved_at,due_at,kind
-                 FROM care_tasks WHERE patient_ref=? AND created_at>=?''',(patient_ref,cutoff)).fetchall()
-            obs=self.s.db.execute('SELECT COUNT(*) n FROM observations WHERE patient_ref=? AND received_at>=?',
-                                  (patient_ref,cutoff)).fetchone()['n']
-            check=self.s.db.execute('SELECT COUNT(*) n FROM checkins WHERE patient_ref=? AND created_at>=?',
-                                    (patient_ref,cutoff)).fetchone()['n']
+        rows,obs,check=self.repo.evaluation_rows(patient_ref,cutoff)
         latency=[r['acknowledged_at']-r['created_at'] for r in rows if r['acknowledged_at'] is not None]
         m={'window_days':days,'task_created_count':len(rows),'task_completed_count':sum(r['status']=='COMPLETED' for r in rows),
            'task_overdue_current_count':sum(r['status']=='OVERDUE' for r in rows),
@@ -161,12 +119,9 @@ class Engagement:
         now=at if at is not None else time.time()
         hour=datetime.fromtimestamp(now,timezone.utc).strftime('%Y-%m-%dT%H:00Z')
         with self.s.transaction():
-            counts=self.s.db.execute('''SELECT priority,status,COUNT(*) n FROM care_tasks GROUP BY priority,status''').fetchall()
-            prefs=self.s.db.execute('SELECT COUNT(*) n FROM patient_engagement_preferences WHERE reminder_opt_in=1').fetchone()['n']
-            prompt_count=self.s.db.execute('SELECT COUNT(*) n FROM simulated_prompts').fetchone()['n']
-            meta={'task_buckets':{r['priority']+':'+r['status']:r['n'] for r in counts},
+            buckets,prefs,prompt_count=self.repo.snapshot_counts()
+            meta={'task_buckets':buckets,
                   'opted_in_patient_count':prefs,'simulated_prompt_count':prompt_count,
                   'actual_message_delivery_count':0,'clinical_utility_validated':False}
-            self.s.db.execute('INSERT OR IGNORE INTO operational_snapshots VALUES(?,?,?)',
-                              (hour,now,json.dumps(meta,sort_keys=True)))
+            self.repo.insert_snapshot(hour,now,meta)
         return {'snapshot_hour':hour,'captured':True,'aggregate_only':True,'metrics':meta}

@@ -42,6 +42,12 @@ from .infrastructure.checkin_dispatcher import N8NCheckinDispatcher
 from .infrastructure.case_dispatcher import N8NCaseDispatcher
 from .infrastructure.persistence.checkin_reader import SqlCheckinReader
 from .infrastructure.persistence.health_reader import SqlHealthReader
+from .infrastructure.persistence.coordination_repository import SqlCoordinationRepository
+from .infrastructure.persistence.engagement_repository import SqlEngagementRepository
+from .infrastructure.persistence.fhir_repository import SqlFhirRepository
+from .infrastructure.persistence.handoff_repository import SqlHandoffRepository
+from .infrastructure.persistence.dispatch_repository import SqlDispatchRepository
+from .infrastructure.persistence.communications_repository import CommunicationsRepository
 
 log=logging.getLogger('hah')
 logging.basicConfig(level=logging.WARNING)
@@ -52,13 +58,13 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
     store=store or Store(settings)
     model=model or LLMClient(settings)
     rag=Rag(store,model,settings.knowledge_dir)
-    coordination=Coordinator(store)
-    fhir_bridge=FHIRBridge(store,coordination)
+    coordination=Coordinator(store,repository=SqlCoordinationRepository(store))
+    fhir_bridge=FHIRBridge(store,coordination,repository=SqlFhirRepository(store))
     verifier=TokenVerifier(settings)
-    operations=ShiftHandoff(store,coordination)
-    dispatch_queue=QueueJob(store)
-    engagement=Engagement(store,coordination)
-    communications=CommunicationService(store,coordination)
+    operations=ShiftHandoff(store,coordination,repository=SqlHandoffRepository(store))
+    dispatch_queue=QueueJob(store,repository=SqlDispatchRepository(store))
+    engagement=Engagement(store,coordination,repository=SqlEngagementRepository(store))
+    communications=CommunicationService(store,coordination,repository=CommunicationsRepository(store))
     case_dispatcher=N8NCaseDispatcher(settings,dispatch)
     checkin_dispatcher=N8NCheckinDispatcher(settings,checkin_dispatch)
 
@@ -74,7 +80,7 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
     ops=DispatchOperations(store,coordination,dispatch_queue,operations,case_dispatcher,
                            checkin_dispatcher,SqlCheckinReader(store),SqlHealthReader(store),settings.auth_mode)
 
-    app=FastAPI(title='Hospital-at-Home Care Coordination (Synthetic Research Platform)',version='3.2.0')
+    app=FastAPI(title='Hospital-at-Home Care Coordination (Synthetic Research Platform)',version='3.3.0')
     # Preserve existing fixtures and runtime observability against these concrete adapters.
     app.state.communications=communications
     app.state.store=store

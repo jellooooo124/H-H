@@ -78,3 +78,7 @@ The first large compatibility refactor moved monitoring, handoff, FHIR, engageme
 All **59 existing HTTP method/path contracts** are preserved while the remaining 3.1 `legacy_api.py` route handlers have moved into dedicated presentation adapters and use cases. `legacy_api.py` is now the backward-compatible composition root (roughly 109 lines). Case intake, human decision, agent steps, finalization and operational dispatch are split by responsibility; some transaction failure paths were hardened. The **15 n8n workflow JSON files are unchanged** and should not be re-imported into a running deployment.
 
 See [v3.2 refactor details](docs/REFACTOR_3_2.md) and [verification boundaries](docs/RELEASE_VALIDATION_3_2.md). Still a synthetic educational prototype, not a validated clinical service. Existing coordination, handoff, engagement, FHIR and communications persistence modules need further repository extraction.
+
+## Clean Architecture v3.3
+
+SQL operations for coordination, handoff, dispatch, engagement, FHIR and communication services now live in infrastructure persistence adapters. See `docs/REFACTOR_3_3.md`. For a 2017 Intel Mac, see `docs/MAC_AIR_2017_DEPLOYMENT_V33.md` (remote Linux Docker recommended).

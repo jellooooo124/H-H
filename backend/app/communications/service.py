@@ -2,13 +2,13 @@
 from __future__ import annotations
 import time
 from .domain import Template, TEMPLATES, Status, WorkflowConflict, can_publish_for_case
-from .repository import CommunicationsRepository
+from ..infrastructure.persistence.communications_repository import CommunicationsRepository
 
 class CommunicationService:
-    def __init__(self,store,coordinator):
+    def __init__(self,store,coordinator,repository=None):
         self.store=store
         self.coordinator=coordinator
-        self.repo=CommunicationsRepository(store)
+        self.repo=repository or CommunicationsRepository(store)
 
     def draft(self,*,request_key,patient_ref,template_code,actor,due_hours,case_id=None):
         template=Template(template_code)
