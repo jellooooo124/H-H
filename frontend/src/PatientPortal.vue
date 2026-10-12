@@ -37,7 +37,7 @@ function fmt(v){return new Date(v*1000).toLocaleString()}
 </script>
 <template>
 <main>
-  <header><div><p class="eyebrow">CA6117 · CARE COORDINATION RESEARCH PLATFORM</p><h1>Patient Portal — Synthetic Demo</h1>
+  <header><div><p class="eyebrow">H@H AUTOMATION · PATIENT EXPERIENCE PORTFOLIO</p><h1>Patient Portal — Synthetic Demo</h1>
     <p>自主追蹤觀測、回覆 Check-in、控制提醒偏好。</p></div>
     <span class="warning">SYNTHETIC ONLY · NOT FOR CLINICAL USE</span></header>
   <p class="error">{{privacyReminder}}</p>

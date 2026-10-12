@@ -80,7 +80,7 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
     ops=DispatchOperations(store,coordination,dispatch_queue,operations,case_dispatcher,
                            checkin_dispatcher,SqlCheckinReader(store),SqlHealthReader(store),settings.auth_mode)
 
-    app=FastAPI(title='Hospital-at-Home Care Coordination (Synthetic Research Platform)',version='3.3.0')
+    app=FastAPI(title='H@H Care Coordination (Synthetic Portfolio Sandbox)',version='3.3.0')
     # Preserve existing fixtures and runtime observability against these concrete adapters.
     app.state.communications=communications
     app.state.store=store

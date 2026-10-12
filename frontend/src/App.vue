@@ -94,7 +94,7 @@ const statusLabel=s=>({OPEN:'待接單',ACKNOWLEDGED:'已接單',OVERDUE:'已逾
 <template>
 <main>
   <header>
-    <div><p class="eyebrow">CA6117 · HOSPITAL AT HOME · CARE COORDINATION RESEARCH PLATFORM</p>
+    <div><p class="eyebrow">H@H AUTOMATION · CLINICIAN OPERATIONS PORTFOLIO</p>
       <h1>Clinical Care Coordination Workspace</h1>
       <p>連續監測 → 多代理推論 → 醫護接單 → 安全審核 → 後續追蹤</p>
     </div>
