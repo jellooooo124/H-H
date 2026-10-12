@@ -1,0 +1,89 @@
+name: Full stack disposable Docker Compose smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable synthetic-only secrets
+        run: |
+          python - <<'PY'
+          import os, secrets, base64
+          values = {
+              'APP_INTERNAL_KEY': 'ci-' + secrets.token_hex(32),
+              'APP_TOKEN_SECRET': 'ci-' + secrets.token_hex(32),
+              'APP_ENCRYPTION_KEY': base64.urlsafe_b64encode(os.urandom(32)).decode(),
+              'N8N_ENCRYPTION_KEY': secrets.token_hex(32),
+              'POSTGRES_PASSWORD': secrets.token_hex(24),
+              'APP_ADMIN_KEY': 'ci-' + secrets.token_hex(32),
+              'AUTH_MODE': 'demo',
+              'DEMO_MODE': 'true',
+          }
+          with open('.env','w') as f:
+              for k,v in values.items(): f.write(f'{k}={v}\n')
+          os.chmod('.env',0o600)
+          print('Generated isolated CI-only credentials; values redacted')
+          PY
+      - name: Build and start database, API, n8n and front end
+        run: docker compose up -d --build
+      - name: Wait for all four services
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 100); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8000/health >/tmp/hah_api_health.json &&
+               curl -fsS --max-time 3 http://127.0.0.1:8080/ >/tmp/hah_frontend.html &&
+               curl -fsS --max-time 3 http://127.0.0.1:5678/healthz >/tmp/hah_n8n_health.txt; then
+              echo "All API, Vue/Nginx, n8n endpoints responded"
+              break
+            fi
+            if [ "$attempt" -eq 100 ]; then
+              echo "Timed out waiting for the complete stack" >&2
+              exit 1
+            fi
+            sleep 3
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          health=json.loads(Path('/tmp/hah_api_health.json').read_text())
+          assert health['ok'] is True, health
+          assert health['db_backend']=='postgres', health
+          assert health['synthetic_only'] is True, health
+          page=Path('/tmp/hah_frontend.html').read_text()
+          assert '<html' in page.lower(), 'Front end did not render HTML'
+          print('Real PostgreSQL-backed API and Vue frontend: PASS')
+          PY
+      - name: Check HMAC audit chain using authenticated API
+        run: |
+          set -euo pipefail
+          internal_key="$(sed -n 's/^APP_INTERNAL_KEY=//p' .env)"
+          curl -fsS --max-time 20 -X POST             -H "X-Internal-Key: ${internal_key}"             -H 'Content-Type: application/json'             -d '{}'             http://127.0.0.1:8000/internal/ops/audit-health > /tmp/hah_db_audit_health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result=json.loads(Path('/tmp/hah_db_audit_health.json').read_text())
+          assert result['db_backend']=='postgres', result
+          assert result['audit_chain_valid'] is True, result
+          assert result['synthetic_only'] is True, result
+          print('PostgreSQL/HMAC API integration: PASS')
+          PY
+      - name: Import all workflows into the running n8n instance
+        run: |
+          docker compose cp workflows n8n:/tmp/workflows
+          docker compose exec -T n8n n8n import:workflow --separate --input=/tmp/workflows
+      - name: Diagnose failed services and remove disposable data
+        if: always()
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=100 --no-color api postgres n8n frontend || true
+          docker compose down --volumes --remove-orphans || true
+          rm -f .env
