@@ -80,6 +80,23 @@ jobs:
         run: |
           docker compose cp workflows n8n:/tmp/workflows
           docker compose exec -T n8n n8n import:workflow --separate --input=/tmp/workflows
+      - name: Execute actual n8n 09 PostgreSQL audit workflow against running API
+        run: |
+          set -euo pipefail
+          # Do not modify any of the 15 distributable workflow JSONs.
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          original=json.loads(Path('workflows/09_database_auth_audit_health.json').read_text())
+          original['id']='ci-audit-readiness'
+          original['name']='CI - PostgreSQL Audit Execution (ephemeral)'
+          Path('/tmp/hah_ci_09.json').write_text(json.dumps(original))
+          PY
+          docker compose cp /tmp/hah_ci_09.json n8n:/tmp/hah_ci_09.json
+          docker compose exec -T n8n n8n import:workflow --input=/tmp/hah_ci_09.json
+          # n8n CLI uses the same disposable volume, but does not race the server process.
+          docker compose stop n8n
+          docker compose run --rm --no-deps n8n n8n execute --id=ci-audit-readiness
       - name: Diagnose failed services and remove disposable data
         if: always()
         run: |
