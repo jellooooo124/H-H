@@ -36,15 +36,18 @@ flowchart TB
 6. Backend authorization, not the frontend or n8n expression, decides patient-scoped actions.
 7. AI model version, evaluated dataset and RAG evidence need explicit provenance before any supervised clinical pilot.
 
-## Clean Architecture migration (v3.1: completed first slice)
+## Clean Architecture migration status (v3.2)
 
-- **Domain:** `backend/app/domain/patient_scope.py` owns framework-free patient-ref validation and access rules.
-- **Application:** `application/access_control.py`, `case_queries.py`, `engagement_use_cases.py`, `fhir_use_cases.py`, `handoffs.py`, `monitoring.py` own the newly migrated use cases; `application/ports.py` defines technology-independent boundaries.
-- **Presentation:** `presentation/auth.py` and `presentation/routers/{case_queries,fhir,engagement,handoffs,monitoring}.py` translate authorization and errors to HTTP while preserving original contract paths.
-- **Infrastructure:** `infrastructure/persistence/{sql_store,postgres_compat}.py` now holds the canonical SQLite/PostgreSQL adapter, and `infrastructure/checkin_dispatcher.py` owns outbound ID-only HTTP dispatch. The previous `app.store` and `app.postgres_compat` names are compatibility imports only.
-- **Compatibility:** all 59 inherited HTTP method/path contracts are verified against a frozen baseline in `docs/API_CONTRACT_3_0.json`. Original 15 n8n Workflow JSON files are unchanged.
-- **Quality gate:** `scripts/check_architecture.py` rejects framework/persistence imports in eight newly migrated pure domain/application modules.
+- **Domain:** `domain/patient_scope.py` and `domain/workflow_rules.py` define patient scope, urgent symptom flags, mandatory tool rules and approval invariants without HTTP or persistence imports.
+- **Application:** `application/clinical_cases.py`, `agent_execution.py`, `dispatch_operations.py` and `access_administration.py` own the migrated clinical workflow, agent execution, operational recovery and access assignment. Previously migrated monitoring, FHIR, handoffs, case-query and engagement application services are retained.
+- **Presentation:** HTTP adapters in `presentation/routers/` own all 59 inherited API method/path contracts and map typed business failures to HTTP errors. The authentication dependencies remain in `presentation/auth.py`.
+- **Infrastructure:** encrypted SQL store and PostgreSQL adapter under `infrastructure/persistence/`, synthetic check-in and DB health readers, outbound case/check-in ID-only dispatchers. The previous `app.store`, `app.postgres_compat` and `app.legacy_api` names are compatibility imports/entrypoints.
+- **Composition root:** `legacy_api.py` has no route implementation; only dependency composition and router registration remain. It is still named `legacy_api.py` to preserve imports.
+- **Compatibility:** exact 59 method/path pairs are frozen in `contracts/api_routes_v3_1.json` and checked in tests. All 15 n8n JSON workflows remain byte-identical to v3.1.
+- **Quality gate:** `scripts/check_architecture.py` checks 13 migrated domain/application modules for forbidden adapter/framework dependencies.
 
-## Clean architecture limitations
+See [v3.2 refactor record](REFACTOR_3_2.md) and [verification status](RELEASE_VALIDATION_3_2.md).
 
-The new communications bounded context follows a clean layering model. Existing agents, orchestration and operational modules predate this design and are encapsulated behind a backward-compatible HTTP adapter. Remaining clinical agent state transitions, durable queue draining, and SQL-backed operations still live in the compatibility module and old orchestration services. Completing those migrations, replacing SQLite-compat SQL, employing per-request DB connections, and integrating an IAM/PHI-compliant secure stack are **not completed** and are required before considering a real pilot.
+## Clean Architecture limitations
+
+The route-layer migration is complete, **not** the entire application's persistence refactor. `coordination.py`, `operations23.py`, `engagement24.py`, `fhir_bridge.py` and `communications/repository.py` still combine transaction/data access and orchestration. They should be split into repository adapters plus application/domain services with live DB transaction checks. The SQLite-compatible PostgreSQL driver is educational, not a production pooled data access layer. Live OIDC, n8n execution, PostgreSQL, frontend build, model inference and clinical outcome validation are still out of scope of offline verification.

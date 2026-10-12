@@ -42,3 +42,11 @@ GitHub 的新 Repository 發布方案請見 `docs/GITHUB_PUBLISH.md`。`workflow
 ## Clean Architecture v3.1 重構
 
 本版將患者監測、交接、FHIR、患者互動、案件查詢 API 拆成 Presentation / Application 模組，將主要 SQL 儲存移至 Infrastructure，並加入純 Domain 的授權政策及相容契約測試。原 59 個 API method/path 及 15 個 n8n JSON 工作流程不變。尚留 16 個主要臨床協調 API 在相容層，**不是**全面完成的臨床級 Clean Architecture。詳見 [重構說明](docs/REFACTOR_3_1.md)。
+
+## Clean Architecture v3.2 更新
+
+本版把 v3.1 留在 `legacy_api.py` 的收案、醫護決策、Agent、Safe Stop、Watchdog、事件重試及管理路由，全部移到獨立的 Presentation Router 與 Application Use Case。`legacy_api.py` 保留為約 109 行的組裝及向下相容入口。
+
+**59 個原有 API method/path 全部保留；15 個 n8n JSON 與 v3.1 完全一致**，若已匯入舊版，不需要再次匯入，以免重複排程。並新增交易回滾、技術失敗人工任務、逾時升級與原有介面契約測試。驗證為 79 項離線測試通過、1 項 PostgreSQL 實機測試跳過，12/12 合成安全案例通過。
+
+請參閱 [`docs/REFACTOR_3_2.md`](docs/REFACTOR_3_2.md)；舊的照護協調、FHIR、排班與通知模組尚有資料庫邏輯混用，不能宣稱整套系統已完全 Clean Architecture，更不能視為正式臨床系統。

@@ -72,3 +72,9 @@ Additional documentation: [Chinese guide](README_繁體中文.md) · [Threats an
 ## Architecture migration v3.1
 
 The first large compatibility refactor moved monitoring, handoff, FHIR, engagement and case-query routes into presentation/application modules, moved the encrypted SQL backend into infrastructure, and established a pure patient scope policy. **59 API contracts and 15 n8n JSON workflows are preserved.** See [Refactor migration notes](docs/REFACTOR_3_1.md) for remaining legacy and deployment gaps.
+
+## Clean Architecture v3.2 update
+
+All **59 existing HTTP method/path contracts** are preserved while the remaining 3.1 `legacy_api.py` route handlers have moved into dedicated presentation adapters and use cases. `legacy_api.py` is now the backward-compatible composition root (roughly 109 lines). Case intake, human decision, agent steps, finalization and operational dispatch are split by responsibility; some transaction failure paths were hardened. The **15 n8n workflow JSON files are unchanged** and should not be re-imported into a running deployment.
+
+See [v3.2 refactor details](docs/REFACTOR_3_2.md) and [verification boundaries](docs/RELEASE_VALIDATION_3_2.md). Still a synthetic educational prototype, not a validated clinical service. Existing coordination, handoff, engagement, FHIR and communications persistence modules need further repository extraction.

@@ -7,7 +7,10 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]/'backend'/'app'
 PURE=['domain/patient_scope.py','application/access_control.py','application/case_queries.py',
       'application/engagement_use_cases.py','application/fhir_use_cases.py','application/handoffs.py',
-      'application/monitoring.py','application/ports.py']
+      'application/monitoring.py','application/ports.py',
+      'domain/workflow_rules.py','application/clinical_cases.py',
+      'application/agent_execution.py','application/dispatch_operations.py',
+      'application/access_administration.py']
 FORBIDDEN=('fastapi','starlette','flask','sqlalchemy','sqlite3','psycopg','httpx',
            'app.infrastructure','app.presentation')
 
