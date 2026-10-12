@@ -1,0 +1,56 @@
+name: Optional Real AI Provider Smoke (manual and paid)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_paid_provider_call:
+        description: "I accept two billable synthetic-only OpenAI API calls"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  live-openai-check:
+    if: ${{ inputs.confirm_paid_provider_call }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install app dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Test actual LLMClient with synthetic-only payload
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${OPENAI_API_KEY:-}" || { echo "Required GitHub secret OPENAI_API_KEY is missing" >&2; exit 1; }
+          PYTHONPATH=backend python - <<'PY'
+          import os
+          from types import SimpleNamespace
+          from app.agents import LLMClient, PLANNER_SYSTEM
+          from app.schemas import PlannerResponse
+          model=LLMClient(SimpleNamespace(
+              openai_key=os.environ["OPENAI_API_KEY"],
+              llm_model="gpt-4.1-mini",
+              vision_model="gpt-4.1-mini",
+              embedding_model="text-embedding-3-small",
+          ))
+          assert model.available()
+          reply=model.structured(
+              PLANNER_SYSTEM,
+              {"completed_tools":[],"available_tools":["nutrition"],
+               "safe_goal":"gather evidence for clinician review",
+               "structured_vitals":{},"reported_symptom_flags":{},
+               "meal_present":False,"image_present":False},
+              PlannerResponse)
+          assert reply.next_tool in ("nutrition","finish")
+          embedding=model.embed("Synthetic demo AI provider connectivity. No patient information.")
+          assert len(embedding)>100 and all(isinstance(x,float) for x in embedding[:8])
+          print("PASS: real provider structured planner and embeddings via H@H application LLMClient")
+          PY
