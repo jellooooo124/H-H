@@ -54,6 +54,29 @@ try {
     headers: { Authorization: 'Bearer ' + tokens.clinician }
   });
   assert.equal(forbiddenPatient.status(), 403);
+  // A genuine API fail-closed case (no provider key) still demands human review.
+  // This tests the clinician UI without fabricating a model output.
+  await clinician.getByRole('button', { name: '照護任務佇列' }).click();
+  await clinician.getByRole('button', { name: '重新載入任務及案件' }).click();
+  const seeded = clinician.locator('aside button.case').filter({ hasText: 'HHC-CASE-CI-REVIEW' });
+  await seeded.waitFor({ state: 'visible', timeout: 15000 });
+  await seeded.click();
+  await clinician.getByText(/DEMO-P001 · TECHNICAL_REVIEW · Version/).waitFor({ state: 'visible', timeout: 15000 });
+  await clinician.getByRole('button', { name: '先確認接手此案件' }).click();
+  await clinician.locator('article select').selectOption('escalate');
+  await clinician.locator('article textarea').fill(
+    'Synthetic CI human review: missing model evidence, escalate to documented follow-up.'
+  );
+  await clinician.getByRole('button', { name: '送出醫護決策' }).click();
+  await clinician.getByText(/DEMO-P001 · ESCALATED · Version/).waitFor({ state: 'visible', timeout: 15000 });
+  const followups = await clinician.request.get(baseURL + '/v2/tasks', {
+    headers: { Authorization: 'Bearer ' + tokens.clinician }
+  });
+  assert.equal(followups.status(), 200);
+  const reviewTasks = (await followups.json()).tasks;
+  assert.ok(reviewTasks.some(t => t.case_id === 'HHC-CASE-CI-REVIEW' && t.kind === 'escalation_followup'));
+
+  console.log('PASS: real browser fail-closed case -> clinician claim -> escalation -> follow-up task');
   console.log('PASS: real browser clinician draft -> publish -> patient acknowledge -> clinician sees receipt; role separation');
   await ctx.close();
 } catch (e) {
