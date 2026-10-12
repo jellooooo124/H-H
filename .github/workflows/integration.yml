@@ -40,7 +40,7 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r backend/requirements.txt pytest pytest-asyncio
       - name: Exercise actual PostgreSQL integration (no SQLite fallback)
-        run: pytest -q tests/test_postgres_live_optin_v22.py
+        run: pytest -q tests/test_postgres_live_optin_v22.py tests/test_postgres_live_concurrency.py
 
   n8n-import:
     name: Import 15 workflows into real n8n CLI
