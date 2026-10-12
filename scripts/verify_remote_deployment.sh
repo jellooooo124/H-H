@@ -15,11 +15,16 @@ for service_port in 'frontend 80' 'api 8000' 'n8n 5678'; do
   fi
   echo "PASS: $service accessible only via host loopback $published"
 done
-if docker compose port postgres 5432 >/dev/null 2>&1; then
-  echo "FAIL: PostgreSQL must not publish a host port" >&2
-  exit 1
-fi
-echo "PASS: PostgreSQL has no published host port"
+# Compose port may exit successfully even when a port has no host publication.
+# Examine the resolved Compose spec instead of relying on its exit code.
+docker compose config --format json | python3 -c '
+import json,sys
+cfg=json.load(sys.stdin)
+ports=cfg["services"]["postgres"].get("ports", [])
+if ports:
+    sys.exit("FAIL: PostgreSQL publishes host ports: "+str(ports))
+print("PASS: PostgreSQL has no published host port")
+'
 printf '\nContainer status:\n'; docker compose ps
 printf '\nHealth checks:\n'
 curl -fsS --max-time 8 http://127.0.0.1:8000/health >/dev/null && echo 'PASS FastAPI /health'
