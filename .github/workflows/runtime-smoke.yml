@@ -102,28 +102,53 @@ jobs:
             if curl -fsS --max-time 3 http://127.0.0.1:5678/healthz >/dev/null; then break; fi
             sleep 2
           done
-          # Seed an entirely synthetic event via the local test container.
-          docker compose exec -T api python -c "from app.main import app; app.state.coordination.create_checkin('DEMO-P001','CHK-CI-SYNTHETIC0001',{'symptoms': {'swelling': True}, 'is_synthetic': True})"
-          # /healthz may pass before n8n finishes registering published webhooks.
-          # Retry only until a 2xx acknowledgement; never call the internal API directly.
-          webhook_code=""
-          for i in $(seq 1 35); do
-            webhook_code="$(curl -sS -o /tmp/ci_webhook_response.json -w '%{http_code}' --max-time 8 -X POST \
-              -H 'Content-Type: application/json' \
-              -d '{"event_id":"CHK-CI-SYNTHETIC0001"}' \
-              http://127.0.0.1:5678/webhook/hah-checkin-intake || true)"
-            if [ "$webhook_code" = "200" ] || [ "$webhook_code" = "202" ]; then break; fi
-            sleep 2
-          done
-          test "$webhook_code" = "200" || test "$webhook_code" = "202" || { echo "Webhook never registered; last HTTP status=$webhook_code" >&2; exit 1; }
-          status=""
-          for i in $(seq 1 25); do
-            status="$(docker compose exec -T api python -c "from app.main import app; row=app.state.store.db.execute('SELECT status FROM checkins WHERE event_id=?',('CHK-CI-SYNTHETIC0001',)).fetchone();print(row['status'] if row else 'MISSING')" | tr -d '\r\n')"
-            if [ "$status" = "TRIAGED" ]; then break; fi
-            sleep 2
-          done
-          test "$status" = "TRIAGED" || { echo "Webhook processing did not complete" >&2; exit 1; }
-          echo "PASS: n8n webhook -> authenticated FastAPI triage -> PostgreSQL"
+          # Exercise the full patient-facing HTTP endpoint; do not manually
+          # call the n8n webhook or the FastAPI internal triage endpoint.
+          # JWT stays inside the disposable API container and is never printed.
+          docker compose exec -T api python - <<'PY'
+          import os
+          import time
+          import uuid
+          import jwt
+          import httpx
+          from app.main import app
+
+          event_id = "CHK-CI-" + uuid.uuid4().hex[:20]
+          claims = {
+              "iss": "hah-course-demo",
+              "sub": "ci-synthetic-patient",
+              "role": "patient",
+              "patient_ref": "DEMO-P001",
+              "exp": int(time.time()) + 300,
+          }
+          token = jwt.encode(claims, os.environ["APP_TOKEN_SECRET"], algorithm="HS256")
+          result = httpx.post(
+              "http://127.0.0.1:8000/v2/checkins",
+              headers={"Authorization": "Bearer " + token},
+              json={
+                  "event_id": event_id,
+                  "patient_ref": "DEMO-P001",
+                  "is_synthetic": True,
+                  "symptoms": {"swelling": True},
+                  "device_problem": False,
+                  "patient_note": "Synthetic CI-only check-in",
+              },
+              timeout=30,
+          )
+          assert result.status_code == 202, "Patient check-in API returned " + str(result.status_code)
+          assert result.json()["event_id"] == event_id
+
+          for attempt in range(30):
+              row = app.state.store.db.execute(
+                  "SELECT status FROM checkins WHERE event_id=?", (event_id,)
+              ).fetchone()
+              if row and row["status"] == "TRIAGED":
+                  print("PASS: patient HTTP check-in -> n8n webhook -> FastAPI triage -> PostgreSQL")
+                  break
+              time.sleep(2)
+          else:
+              raise AssertionError("Check-in did not reach TRIAGED through n8n")
+          PY
       - name: Diagnose failed services and remove disposable data
         if: always()
         run: |
