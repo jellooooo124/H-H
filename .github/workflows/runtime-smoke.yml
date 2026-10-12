@@ -63,6 +63,43 @@ jobs:
           assert '<html' in page.lower(), 'Front end did not render HTML'
           print('Real PostgreSQL-backed API and Vue frontend: PASS')
           PY
+      - name: Verify browser security headers and fail-closed HTTP boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError
+
+          root="http://127.0.0.1:8080"
+          for endpoint in ("/","/patient.html"):
+              with urlopen(root+endpoint,timeout=10) as res:
+                  hdr=res.headers
+                  policy=hdr.get("Content-Security-Policy","")
+                  assert "default-src 'self'" in policy,policy
+                  assert "script-src 'self'" in policy,policy
+                  assert "object-src 'none'" in policy,policy
+                  assert "frame-ancestors 'none'" in policy,policy
+                  assert hdr.get("X-Frame-Options")=="DENY"
+                  assert hdr.get("X-Content-Type-Options")=="nosniff"
+                  assert "no-store" in hdr.get("Cache-Control","")
+                  assert "camera=()" in hdr.get("Permissions-Policy","")
+          for endpoint in ("/v1/cases","/v2/tasks","/v5/patient/communications"):
+              try:
+                  urlopen(root+endpoint,timeout=10)
+              except HTTPError as err:
+                  assert err.code==401,(endpoint,err.code)
+              else:
+                  raise AssertionError(f"{endpoint} unexpectedly public")
+          for endpoint in ("/internal/ops/audit-health","/internal/checkin/triage"):
+              req=Request(root+endpoint,data=b"{}",method="POST",headers={"Content-Type":"application/json"})
+              try:
+                  urlopen(req,timeout=10)
+              except HTTPError as err:
+                  assert err.code==401,(endpoint,err.code)
+              else:
+                  raise AssertionError(f"{endpoint} unexpectedly public")
+          print("PASS: strict CSP/permissions/frame headers, unauthenticated clinician/patient/internal endpoints rejected")
+          PY
       - name: Check HMAC audit chain using authenticated API
         run: |
           set -euo pipefail
