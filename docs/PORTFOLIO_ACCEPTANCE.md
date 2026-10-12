@@ -9,6 +9,7 @@ This repository is an **independent AI + n8n healthcare operations portfolio pro
 - n8n 2.42.6 import of all 15 workflows.
 - Docker Compose runtime smoke: FastAPI + PostgreSQL + n8n + Vue/Nginx.
 - Real patient API check-in to published n8n webhook to FastAPI callback to PostgreSQL.
+- Fault injection: stop n8n before patient check-in, confirm PostgreSQL retains the PENDING event and durable dispatch job; restart n8n, drain its queue, confirm TRIAGED without duplicate events and validate audit chain.
 - Chromium browser check: clinician drafts a fixed-template message; patient cannot see it before publication; clinician publishes; patient acknowledges; clinician sees acknowledgement; role-based API rejection of cross-role access.
 - Browser clinician review of a **real fail-closed case** (no live AI credentials): patient synthetic intake → backend creates `TECHNICAL_REVIEW` → clinician claims review and escalates in Chromium → follow-up task is persisted. No model output is fabricated.
 - PostgreSQL/API restart check: communication acknowledgement persists and tamper-evident audit chain remains valid.

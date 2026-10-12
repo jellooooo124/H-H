@@ -199,6 +199,85 @@ jobs:
           else:
               raise AssertionError("Check-in did not reach TRIAGED through n8n")
           PY
+      - name: Prove n8n outage leaves durable queued check-in and recovers after restart
+        run: |
+          set -euo pipefail
+          docker compose stop n8n
+          docker compose exec -T api python - <<'PY'
+          import os, time, jwt, httpx
+          from app.main import app
+          key=os.environ["APP_TOKEN_SECRET"]
+          ref="CHK-CI-OUTAGE-REPLAY001"
+          claims={"iss":"hah-course-demo","sub":"ci-synthetic-patient",
+                  "role":"patient","patient_ref":"DEMO-P001",
+                  "exp":int(time.time())+600}
+          token=jwt.encode(claims,key,algorithm="HS256")
+          response=httpx.post(
+              "http://127.0.0.1:8000/v2/checkins",
+              headers={"Authorization":"Bearer "+token},
+              json={"event_id":ref,"patient_ref":"DEMO-P001","is_synthetic":True,
+                    "symptoms":{"swelling":True},
+                    "patient_note":"Synthetic CI-only temporary orchestration outage"},
+              timeout=25,
+          )
+          assert response.status_code==202,(response.status_code,response.text[:150])
+          row=app.state.store.db.execute("SELECT status FROM checkins WHERE event_id=?",(ref,)).fetchone()
+          assert row and row["status"]=="PENDING",row
+          job=app.state.store.db.execute(
+              "SELECT status FROM dispatch_jobs WHERE job_kind=? AND reference_id=?",
+              ("CHECKIN_DISPATCH",ref)
+          ).fetchone()
+          assert job and job["status"]=="PENDING",job
+          assert app.state.store.verify_audit() is True
+          print("PASS: n8n outage -> API 202 -> durable PENDING check-in and dispatch job")
+          PY
+          docker compose start n8n
+          for attempt in $(seq 1 45); do
+            if curl -fsS --max-time 3 http://127.0.0.1:5678/healthz >/dev/null; then break; fi
+            sleep 2
+          done
+          # A healthy n8n process alone doesn't prove published webhooks are ready.
+          code=""
+          for attempt in $(seq 1 35); do
+            code="$(curl -sS -o /tmp/hah_replay_webhook_ready.json -w '%{http_code}' --max-time 5 -X POST \
+              -H 'Content-Type: application/json' -d '{"event_id":"CHK-CI-READINESS_REPLAY_ONLY"}' \
+              http://127.0.0.1:5678/webhook/hah-checkin-intake || true)"
+            if [ "$code" = "200" ] || [ "$code" = "202" ]; then break; fi
+            sleep 2
+          done
+          test "$code" = "200" || test "$code" = "202" || { echo "Restored webhook did not become available" >&2; exit 1; }
+          # Invoke the same authenticated drain endpoint used by n8n schedules.
+          # Retry is server-side and references the durable queue, not a new check-in.
+          docker compose exec -T api python - <<'PY'
+          import os, time, httpx
+          from app.main import app
+          ref="CHK-CI-OUTAGE-REPLAY001"
+          with httpx.Client(timeout=30) as client:
+              headers={"X-Internal-Key":os.environ["APP_INTERNAL_KEY"]}
+              result=client.post("http://127.0.0.1:8000/internal/ops/dispatch-drain",
+                                 headers=headers,json={})
+              assert result.status_code==200,(result.status_code,result.text[:200])
+              for attempt in range(30):
+                  row=app.state.store.db.execute(
+                      "SELECT status FROM checkins WHERE event_id=?",(ref,)
+                  ).fetchone()
+                  if row and row["status"]=="TRIAGED": break
+                  time.sleep(2)
+              else:raise AssertionError("Durable check-in was not triaged after n8n recovery")
+              job=app.state.store.db.execute(
+                  "SELECT status FROM dispatch_jobs WHERE job_kind=? AND reference_id=?",
+                  ("CHECKIN_DISPATCH",ref)
+              ).fetchone()
+              assert job and job["status"]=="DELIVERED",job
+              again=client.post("http://127.0.0.1:8000/internal/ops/dispatch-drain",
+                                headers=headers,json={})
+              assert again.status_code==200,again.text[:200]
+              assert app.state.store.db.execute(
+                  "SELECT COUNT(*) AS n FROM checkins WHERE event_id=?",(ref,)
+              ).fetchone()["n"]==1
+              assert app.state.store.verify_audit() is True
+          print("PASS: n8n recovers -> durable queue drain -> PostgreSQL TRIAGED, no duplicate check-in")
+          PY
       - name: Seed real fail-closed clinician review using synthetic-only API calls
         run: |
           set -euo pipefail
