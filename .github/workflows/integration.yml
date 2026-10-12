@@ -1,0 +1,63 @@
+name: Real PostgreSQL and n8n integration gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-live:
+    name: PostgreSQL 17 live transactions and FHIR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: hah_ci
+          POSTGRES_PASSWORD: local_ci_only_password
+          POSTGRES_DB: hah_ci_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hah_ci -d hah_ci_disposable"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PG_TEST_ISOLATED: "YES"
+      PG_TEST_URL: postgresql://hah_ci:local_ci_only_password@127.0.0.1:5432/hah_ci_disposable
+      DEMO_MODE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies
+        run: python -m pip install -r backend/requirements.txt pytest pytest-asyncio
+      - name: Exercise actual PostgreSQL integration (no SQLite fallback)
+        run: pytest -q tests/test_postgres_live_optin_v22.py
+
+  n8n-import:
+    name: Import 15 workflows into real n8n CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify import JSON and API boundary first
+        run: python scripts/verify_artifact.py
+      - name: Import all workflows into disposable n8n database
+        run: |
+          docker run --rm \
+            --security-opt no-new-privileges:true \
+            -e N8N_ENCRYPTION_KEY=ci_only_not_for_deployment_1234567890abcdef \
+            -e N8N_DIAGNOSTICS_ENABLED=false \
+            -e N8N_PERSONALIZATION_ENABLED=false \
+            -e N8N_COMMUNITY_PACKAGES_ENABLED=false \
+            -v "${PWD}/workflows:/workflows:ro" \
+            docker.n8n.io/n8nio/n8n:2.42.6 \
+            import:workflow --separate --input=/workflows
