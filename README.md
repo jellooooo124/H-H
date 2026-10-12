@@ -1,84 +1,71 @@
-# Hospital-at-Home Care Coordination — Research Platform
+# H@H Care Coordination · AI & n8n Automation Portfolio
 
-**CA6117 agentic healthcare prototype · Synthetic records only · Not for clinical use**
+**Independent full-stack software engineering portfolio** combining n8n workflow automation, FastAPI, PostgreSQL, Vue 3, bounded LLM agents, RAG, human review and audit trails. It is **not** an academic assignment deliverable, and it is **not a clinical product**. All supported data are synthetic; no real patients, diagnosis, treatment or emergency response.
 
-A runnable research prototype for multi-agent hospital-at-home coordination across heart failure and diabetes monitoring. This repository uses n8n for **workflow orchestration** and FastAPI for **authorized state transitions and safety enforcement**. It is deliberately not an autonomous diagnosis/treatment system.
+## What actually works
 
-## Demonstrated journey
+- Two browser-facing Vue workspaces: clinician case/task queue and patient portal.
+- Role-scoped API access, synthetic check-ins, durable task dispatch, monitoring trends, encrypted persistence, tamper-evident audit trail, FHIR R4 *synthetic* interoperability.
+- **15 importable n8n workflows**, including a published synthetic Check-in webhook integrated with FastAPI.
+- Clinician-approved **non-clinical, fixed-template** message drafts and publication; patients acknowledge them in the portal. No external SMS/email/hospital paging.
+- Deterministic safety gates, bounded agent tools, model unavailability fail-closed to technical review.
+- PostgreSQL 17-backed Docker Compose stack and disposable GitHub Actions validation, including Chromium browser closed-loop tests and persistence after PostgreSQL/API restarts.
 
-1. A demo patient submits monitoring data, dietary input, or a symptom check-in.
-2. FastAPI validates the synthetic patient scope, persists a durable event and initiates an n8n orchestration.
-3. A bounded planner coordinates nutrition/vision, heart failure, diabetes, and approved-guideline retrieval tools.
-4. A deterministic safety gate reconciles conflicting agents, flags missing evidence and blocks disallowed advice.
-5. A clinician claims and reviews the case, examines citations and original measurements, and approves/rejects/escalates; only a **simulated** case outbox is created.
-6. Clinical task queues, two-party handoff, outbox retries and SLA watch processes reconcile failures.
-7. A clinician can create and explicitly publish only pre-approved **non-clinical in-app communication templates**. The patient can read/acknowledge them. Unacknowledged messages create follow-up tasks, **never** real hospital pages.
-8. Synthetic fixtures and operational metrics are available for repeatable CA6117 demonstrations.
+**Scope:** synthetic demonstration for software engineering review, not clinical effectiveness. Actual LLM requests are optional and need a configured paid provider API key; CI does not silently simulate live models or spend on API calls.
 
-## Quick start (local synthetic test)
+## Test evidence in GitHub Actions
 
-Prerequisites: Docker Engine/Compose, an authenticated n8n administrator for importing workflows, and optional OpenAI API credentials for real LLM/embedding tool calls.
+The repository has three automated workflows under `.github/workflows/`:
+
+| Check | Real execution in CI |
+| --- | --- |
+| `tests.yml` | Python unit/contract/security checks, architecture, synthetic policy, Vue build |
+| `integration.yml` | PostgreSQL 17 live tests including independent transactions; n8n 2.42.6 import of all 15 JSON workflows |
+| `runtime-smoke.yml` | Full Docker Compose startup, published n8n webhook, genuine patient API → n8n → PostgreSQL triage, real Chromium clinician → patient communication acknowledgement, PostgreSQL/API restart persistence |
+
+These run with **disposable synthetic data and ephemeral secrets**. See [Portfolio acceptance report](docs/PORTFOLIO_ACCEPTANCE.md) and current [Actions history](https://github.com/jellooooo124/H-H/actions). Green CI does **not** mean clinical validation, a continuously hosted website or all AI agents proven live.
+
+## Run locally or on a private Linux host
+
+Requires Docker Engine + Compose on **Linux** (a 2017 Intel Mac can use the remote Linux host through SSH and browser; Docker does not need to be installed on that Mac). Do not expose this HTTP/demo-auth setup publicly.
 
 ```bash
 cp .env.example .env
 python scripts/generate_secrets.py
-# Copy the generated values into .env. Leave OPENAI_API_KEY unset to test fail-closed behavior.
+# Copy unique generated secrets into the matching .env entries; never commit .env.
 docker compose up -d --build
 ```
 
-Once services are ready, open:
+Local-only URLs (bound to 127.0.0.1 on host):
 
-- Clinician UI: `http://127.0.0.1:8080/`
-- Patient UI: `http://127.0.0.1:8080/patient.html`
-- FastAPI docs: `http://127.0.0.1:8000/docs`
-- n8n: `http://127.0.0.1:5678`
+| Surface | URL |
+| --- | --- |
+| Clinician workspace | http://127.0.0.1:8080/ |
+| Patient portal | http://127.0.0.1:8080/patient.html |
+| API docs | http://127.0.0.1:8000/docs |
+| n8n administrative editor | http://127.0.0.1:5678 |
 
-Import each of the **15 files from `workflows/*.json`** in n8n using **Import from File**. They are initially inactive. The HTTP nodes access `http://api:8000/internal/...` from the n8n Docker network. The local environment variable `HAH_INTERNAL_KEY` must equal the FastAPI `APP_INTERNAL_KEY`. Run manually before enabling schedules. **Do not import the workflow ZIP itself as a single n8n workflow.**
+Import the 15 **individual JSON files** from `workflows/` using n8n import (or its CLI). They are inactive until explicitly published/activated. Check environment key mapping (`HAH_INTERNAL_KEY` inside n8n must equal `APP_INTERNAL_KEY`), then publish only the workflows required for a synthetic demo. Existing webhook workflows use stable IDs. Avoid activating duplicate webhook paths.
 
-A real LLM API key and online Docker/npm access are necessary for a full integration demonstration. If absent, model operations must fail closed to human technical review. Generate short-lived demo tokens with `python scripts/generate_demo_token.py --help`. Never put patient data or credentials in n8n workflow JSON or Git.
+Generate separate, short-lived synthetic clinician/patient JWTs with `python scripts/generate_demo_token.py --help`; keep credentials out of Git, bug reports and screenshots. Without `OPENAI_API_KEY`, AI-dependent steps **fail closed** rather than producing fictitious agent results.
 
-## Verify
+## Architectural trust boundaries
 
-```bash
-pip install -r backend/requirements.txt pytest pytest-asyncio
-pytest -q
-python scripts/verify_artifact.py
-python scripts/evaluate_synthetic_policy.py
-python -m compileall -q backend/app
-cd frontend && npm install && npm run build
-```
+| Layer | Responsibility |
+| --- | --- |
+| Vue 3 + Nginx | Clinician and patient workspace; browser is untrusted |
+| FastAPI presentation | Authentication and scoped authorization |
+| Application/domain | Validated transitions, clinician approvals, deterministic safety gates |
+| PostgreSQL persistence | Durable synthetic events, encrypted records, audit and retries |
+| n8n | Scheduled workflows and ID-only orchestration; not authorized to bypass backend rules |
+| Model/RAG integrations | Bounded structured data, cited evidence, fail-closed when unavailable |
 
-The last frontend build requires npm packages; Docker Compose additionally requires Docker and Postgres. The codebase was verified offline; see [`docs/RELEASE_VALIDATION.md`](docs/RELEASE_VALIDATION.md) for exactly what was and was not run.
+Browse `backend/app/{domain,application,infrastructure,presentation}`, `frontend/src/`, `workflows/`, `tests/`. Older technical migration and research notes remain in `docs/` for traceability, but **do not determine this portfolio's product requirements**.
 
-## Architecture
+## What's not finished
 
-| Layer | Package/module | Responsibility |
-|---|---|---|
-| Domain | `backend/app/communications/domain.py`, `backend/app/policy.py` | Pure transitions, deterministic safe-stop policy |
-| Application | `backend/app/communications/service.py`, `backend/app/agents.py` | Use-cases, bounded agent calls, follow-up coordination |
-| Infrastructure | `backend/app/communications/repository.py`, `backend/app/store.py`, `postgres_compat.py`, `rag.py` | Data access, encryption, RAG |
-| Presentation | `backend/app/communications/api.py`, `frontend/src/*.vue` | Scoped HTTP endpoints and patient/clinician UIs |
-| Integration | `workflows/*.json` | n8n scheduling and ID-only orchestration |
-| Compatibility | `backend/app/legacy_api.py` | Existing v1–v4 routes; retained intact to avoid regressions |
+There is **no live public Demo URL yet**. External HTTPS hosting, hardened OIDC identity, protected n8n administration, real model-provider smoke tests, external secret management, monitored backups/restoration, broader UI scenario coverage, and deployment/security reviews remain outstanding. Demo auth, local HTTP n8n settings and synthetic-only checks are **not safe to repurpose for real clinical data**.
 
-The new communications bounded context follows dependency direction from transport → application → domain, with persistence behind the repository. Legacy coordination code is explicitly isolated but **has not been fully rewritten** into clean architecture. See [Architecture Decision Records](docs/ARCHITECTURE.md).
+Do not upload protected health information (PHI). No clinical advice, emergency support, medication automation, patient care guarantees or regulated deployment claims.
 
-## Publications / safety
-
-All fixtures, data and interfaces are **synthetic and educational**. No validated clinical thresholds, no real emergency line, no regulated device qualification, no real EHR integration, no real delivery channel, no certified secure deployment. The document set is not patient care advice. Do not upload actual PHI, nor expose the default HTTP/demo-auth deployment on a public network.
-
-Additional documentation: [Chinese guide](README_繁體中文.md) · [Threats and gaps](docs/SECURITY_LIMITATIONS.md) · [CA6117 demo](docs/CA6117_DEMO.md) · [Publish private GitHub repo](docs/GITHUB_PUBLISH.md).
-
-## Architecture migration v3.1
-
-The first large compatibility refactor moved monitoring, handoff, FHIR, engagement and case-query routes into presentation/application modules, moved the encrypted SQL backend into infrastructure, and established a pure patient scope policy. **59 API contracts and 15 n8n JSON workflows are preserved.** See [Refactor migration notes](docs/REFACTOR_3_1.md) for remaining legacy and deployment gaps.
-
-## Clean Architecture v3.2 update
-
-All **59 existing HTTP method/path contracts** are preserved while the remaining 3.1 `legacy_api.py` route handlers have moved into dedicated presentation adapters and use cases. `legacy_api.py` is now the backward-compatible composition root (roughly 109 lines). Case intake, human decision, agent steps, finalization and operational dispatch are split by responsibility; some transaction failure paths were hardened. The **15 n8n workflow JSON files are unchanged** and should not be re-imported into a running deployment.
-
-See [v3.2 refactor details](docs/REFACTOR_3_2.md) and [verification boundaries](docs/RELEASE_VALIDATION_3_2.md). Still a synthetic educational prototype, not a validated clinical service. Existing coordination, handoff, engagement, FHIR and communications persistence modules need further repository extraction.
-
-## Clean Architecture v3.3
-
-SQL operations for coordination, handoff, dispatch, engagement, FHIR and communication services now live in infrastructure persistence adapters. See `docs/REFACTOR_3_3.md`. For a 2017 Intel Mac, see `docs/MAC_AIR_2017_DEPLOYMENT_V33.md` (remote Linux Docker recommended).
+[繁體中文說明](README_繁體中文.md) · [Portfolio acceptance](docs/PORTFOLIO_ACCEPTANCE.md) · [Architecture](docs/ARCHITECTURE.md) · [MacBook Air 2017 deployment](docs/MAC_AIR_2017_DEPLOYMENT_V33.md) · [Security limitations](docs/SECURITY_LIMITATIONS.md)
