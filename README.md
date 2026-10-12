@@ -68,4 +68,4 @@ There is **no live public Demo URL yet**. External HTTPS hosting, hardened OIDC 
 
 Do not upload protected health information (PHI). No clinical advice, emergency support, medication automation, patient care guarantees or regulated deployment claims.
 
-[繁體中文說明](README_繁體中文.md) · [Portfolio acceptance](docs/PORTFOLIO_ACCEPTANCE.md) · [Architecture](docs/ARCHITECTURE.md) · [MacBook Air 2017 deployment](docs/MAC_AIR_2017_DEPLOYMENT_V33.md) · [Security limitations](docs/SECURITY_LIMITATIONS.md)
+[繁體中文說明](README_繁體中文.md) · [Portfolio acceptance](docs/PORTFOLIO_ACCEPTANCE.md) · [Architecture](docs/ARCHITECTURE.md) · [Private Linux / MacBook Air deployment](docs/PRIVATE_REMOTE_DEMO.md) · [Security limitations](docs/SECURITY_LIMITATIONS.md)
