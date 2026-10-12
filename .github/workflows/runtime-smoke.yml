@@ -102,6 +102,19 @@ jobs:
             if curl -fsS --max-time 3 http://127.0.0.1:5678/healthz >/dev/null; then break; fi
             sleep 2
           done
+          # n8n /healthz becomes healthy before published webhooks are registered.
+          # Send a non-patient, nonexistent ID solely to confirm the webhook route
+          # accepts HTTP; this is not the case under test and creates no check-in.
+          ready=""
+          for i in $(seq 1 40); do
+            ready="$(curl -sS -o /tmp/ci_webhook_ready.json -w '%{http_code}' --max-time 5 -X POST \
+              -H 'Content-Type: application/json' \
+              -d '{"event_id":"CHK-CI-READINESS_ONLY"}' \
+              http://127.0.0.1:5678/webhook/hah-checkin-intake || true)"
+            if [ "$ready" = "200" ] || [ "$ready" = "202" ]; then break; fi
+            sleep 2
+          done
+          test "$ready" = "200" || test "$ready" = "202" || { echo "n8n production webhook failed to register" >&2; exit 1; }
           # Exercise the full patient-facing HTTP endpoint; do not manually
           # call the n8n webhook or the FastAPI internal triage endpoint.
           # JWT stays inside the disposable API container and is never printed.
