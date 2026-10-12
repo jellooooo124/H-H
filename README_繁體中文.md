@@ -38,3 +38,7 @@ python scripts/evaluate_synthetic_policy.py
 臨床級安全與正式部署要求尚未達成；請查看 `docs/SECURITY_LIMITATIONS.md`。目前新功能依 Domain → Application → Infrastructure → API 分層，舊版 v1–v4 相容 API 保留於 `legacy_api.py`，仍有後續技術債，不宣稱整個歷史程式已全面重構。
 
 GitHub 的新 Repository 發布方案請見 `docs/GITHUB_PUBLISH.md`。`workflows/*.json` 是可直接在 n8n 匯入的原始 JSON。
+
+## Clean Architecture v3.1 重構
+
+本版將患者監測、交接、FHIR、患者互動、案件查詢 API 拆成 Presentation / Application 模組，將主要 SQL 儲存移至 Infrastructure，並加入純 Domain 的授權政策及相容契約測試。原 59 個 API method/path 及 15 個 n8n JSON 工作流程不變。尚留 16 個主要臨床協調 API 在相容層，**不是**全面完成的臨床級 Clean Architecture。詳見 [重構說明](docs/REFACTOR_3_1.md)。

@@ -1,7 +1,9 @@
-"""Legacy 2.4 HTTP adapter (retained for backward-compatible n8n API contracts).
+"""Backward-compatible composition root for still-unmigrated clinical case workflows.
 
-New features live behind the communications domain/application/infrastructure/API boundary.
-This compatibility module will be split into bounded routers in future refactors.
+59 existing HTTP method/path contracts are preserved. New monitoring, handoff, FHIR,
+engagement and case-query routers live under presentation/routers; persistence lives
+under infrastructure/persistence. Remaining endpoints stay here until transactions
+and fail-closed clinical transitions can be migrated with equivalence tests.
 """
 import hmac, json, logging, time
 from contextlib import asynccontextmanager
@@ -22,6 +24,19 @@ from .operations23 import ShiftHandoff, QueueJob, ShiftIn, HandoffIn
 from .engagement24 import Engagement
 from .communications.service import CommunicationService
 from .communications.api import build_router
+from .application.access_control import AccessControl
+from .application.case_queries import CaseQueries
+from .application.fhir_use_cases import FHIRUseCases
+from .application.engagement_use_cases import EngagementUseCases
+from .presentation.auth import make_dependencies
+from .presentation.routers.case_queries import build_router as build_case_queries_router
+from .presentation.routers.fhir import build_router as build_fhir_router
+from .presentation.routers.engagement import build_router as build_engagement_router
+from .presentation.routers.handoffs import build_router as build_handoffs_router
+from .application.handoffs import HandoffUseCases
+from .application.monitoring import MonitoringUseCases
+from .presentation.routers.monitoring import build_router as build_monitoring_router
+from .infrastructure.checkin_dispatcher import N8NCheckinDispatcher
 
 log=logging.getLogger('hah')
 logging.basicConfig(level=logging.WARNING)
@@ -36,11 +51,6 @@ class CaseRef(BaseModel):
 
 class ExecuteTool(CaseRef):
     tool: str
-
-class PatientPreferenceIn(BaseModel):
-    reminder_opt_in: bool = False
-    reminder_hour_utc: int = Field(ge=0,le=23)
-    minimum_gap_hours: int = Field(ge=24,le=168)
 
 class ErrorNotice(BaseModel):
     workflow_name: str = 'n8n'
@@ -60,7 +70,7 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
     dispatch_queue=QueueJob(store)
     engagement=Engagement(store,coordination)
     communications=CommunicationService(store,coordination)
-    app=FastAPI(title='Hospital-at-Home Care Coordination (Synthetic Research Platform)',version='3.0.0')
+    app=FastAPI(title='Hospital-at-Home Care Coordination (Synthetic Research Platform)',version='3.1.0')
     app.state.communications=communications
     app.state.store=store
     app.state.rag=rag
@@ -73,43 +83,12 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
     app.state.engagement=engagement
     # CORS must be explicitly set if a frontend runs on another origin; default same origin/Swagger.
 
-    def internal(x_internal_key: str | None=Header(default=None)):
-        if not x_internal_key or not hmac.compare_digest(x_internal_key,settings.internal_key):
-            raise HTTPException(status_code=401,detail='Internal authorization required')
-        return True
-
-    def auth(authorization: str | None=Header(default=None)):
-        return verifier.verify(authorization)
-
-    def access(claim,patient_ref):
-        if not isinstance(patient_ref,str) or not PATIENT_REF.fullmatch(patient_ref):
-            raise HTTPException(403,'Invalid synthetic patient scope')
-        if claim['role']=='patient':
-            allowed=claim.get('patient_ref')==patient_ref
-        elif settings.auth_mode=='oidc':
-            # Never use a claim-provided patient_refs list for OIDC clinician authorization.
-            allowed=store.is_assigned(claim['sub'],patient_ref)
-        else:
-            permitted=claim.get('patient_refs')
-            allowed=permitted is None or (isinstance(permitted,list) and patient_ref in permitted)
-        if not allowed:raise HTTPException(403,'Patient scope not assigned')
-        return True
-
-    def allowed_patient_refs(claim):
-        return store.assignments(claim['sub']) if settings.auth_mode=='oidc' else None
-
-    def clinician(claim=Depends(auth)):
-        if claim['role']!='clinician':raise HTTPException(403,'Clinician only')
-        return claim
-
-    def patient(claim=Depends(auth)):
-        if claim['role']!='patient':raise HTTPException(403,'Patient only')
-        return claim
-
-    def admin(x_admin_key: str | None=Header(default=None)):
-        if settings.auth_mode!='oidc' or not x_admin_key or not hmac.compare_digest(x_admin_key,settings.admin_key):
-            raise HTTPException(403,'Access administrator permission required')
-        return True
+    access_policy=AccessControl(store,settings.auth_mode)
+    auth_http,clinician,patient,admin=make_dependencies(settings,verifier,access_policy)
+    internal=auth_http.internal
+    auth=auth_http.auth
+    access=auth_http.require_patient
+    allowed_patient_refs=auth_http.allowed_patient_refs
 
     # Assignment is controlled by independent APP_ADMIN_KEY, never the n8n service key.
     @app.post('/admin/assignments')
@@ -164,27 +143,6 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
             # No silent loss: case stays RECEIVED, visible in overdue watcher.
             store.audit(data.case_id,'ORCHESTRATOR_UNAVAILABLE','system',{'retry_needed':True})
         return {'case_id':data.case_id,'status':'RECEIVED','message':'Accepted for educational workflow; no clinical monitoring guarantee'}
-
-    @app.get('/v1/cases')
-    def list_cases(claim=Depends(clinician)):
-        return store.list_cases(allowed_patient_refs(claim))
-
-    @app.get('/v1/cases/{case_id}')
-    def case_details(case_id:str,claim=Depends(clinician)):
-        c=get_case(case_id)
-        access(claim,c['patient_ref'])
-        # Return synthetic data only to a clinician; data URL omitted to limit accidental exposure.
-        c['payload']['meal_image_data_url']=None
-        return c
-
-    @app.get('/v1/audit/{case_id}')
-    def audit(case_id:str,claim=Depends(clinician)):
-        access(claim,get_case(case_id)['patient_ref'])
-        return {'events':store.audit_events(case_id),'chain_valid':store.verify_audit()}
-
-    @app.get('/v1/outbox')
-    def outbox(claim=Depends(clinician)):
-        return store.list_outbox(allowed_patient_refs(claim))
 
     @app.post('/v1/decisions')
     def decision(data:Decision,claim=Depends(clinician)):
@@ -319,99 +277,6 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
         store.audit('SYSTEM','N8N_EXECUTION_ERROR','n8n',{'error_code':notice.error_code[:40]})
         return {'recorded':True}
 
-    # ---- 2.0 longitudinal observations: patient-scoped synthetic measurements ----
-    @app.post('/v2/observations',status_code=201)
-    def observation(data:ObservationIn, claim=Depends(patient)):
-        access(claim,data.patient_ref)
-        try:return coordination.add_observation(data.patient_ref,data.event_id,data.code,data.value,data.unit,data.taken_at)
-        except ValueError as e:raise HTTPException(409 if str(e)=='DUPLICATE_EVENT' else 422,str(e))
-
-    @app.get('/v2/patients/{patient_ref}/trends')
-    def trends(patient_ref:str,days:int=7, claim=Depends(auth)):
-        access(claim,patient_ref)
-        if not 1<=days<=30:raise HTTPException(422,'days must be 1..30')
-        return coordination.summary(patient_ref,days)
-
-    @app.post('/v2/monitoring-plans')
-    def monitoring_plan(data:MonitoringPlanIn,claim=Depends(clinician)):
-        access(claim,data.patient_ref)
-        return coordination.set_plan(data.patient_ref,data.observation_code,data.review_gap_hours,
-                                     claim['sub'],data.active)
-
-    @app.post('/v2/checkins',status_code=202)
-    async def checkin(data:CheckinIn,claim=Depends(patient)):
-        access(claim,data.patient_ref)
-        try:
-            with store.transaction():
-                created=coordination.create_checkin(data.patient_ref,data.event_id,data.model_dump())
-                dispatch_queue.enqueue('CHECKIN_DISPATCH',data.event_id)
-        except ValueError as e:raise HTTPException(409,str(e))
-        # Urgent symptom flags are triaged synchronously, independently of n8n availability.
-        # This is a synthetic task only; it does NOT page a clinical service.
-        if any(data.symptoms.model_dump().get(k) for k in ('chest_pain','severe_breathlessness','fainting','confusion')):
-            created=coordination.triage_checkin(data.event_id)
-        # Persist a retryable event before contacting n8n; no patient content in the job.
-        try:
-            if checkin_dispatch is not None:await checkin_dispatch({'event_id':data.event_id})
-            else:
-                async with httpx.AsyncClient(timeout=6.0) as client:
-                    r=await client.post(settings.webhook_url.replace('hah-case-intake','hah-checkin-intake'),
-                                        json={'event_id':data.event_id})
-                    r.raise_for_status()
-            dispatch_queue.delivered('CHECKIN_DISPATCH',data.event_id)
-        except Exception:
-            store.audit('CHECKIN','CHECKIN_ORCHESTRATOR_UNAVAILABLE','system',{'pending_reconcile':True})
-        return created
-
-    @app.get('/v2/tasks')
-    def tasks(claim=Depends(clinician)):
-        return {'tasks':coordination.tasks(patient_refs=allowed_patient_refs(claim)),'warning':'Synthetic care tasks; not linked to an actual paging service'}
-
-    @app.post('/v2/tasks/{task_id}/claim')
-    def task_claim(task_id:str,claim=Depends(clinician)):
-        try:access(claim,coordination.get_task(task_id)['patient_ref'])
-        except KeyError:raise HTTPException(404,'Task not found')
-        try:
-            with store.transaction():
-                result=coordination.claim(task_id,claim['sub'])
-                operations.record(result['patient_ref'],task_id,'TASK_CLAIMED',claim['sub'])
-            return result
-        except KeyError:raise HTTPException(404,'Task not found')
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.post('/v2/tasks/{task_id}/resolve')
-    def task_resolve(task_id:str,data:TaskResolveIn,claim=Depends(clinician)):
-        try:access(claim,coordination.get_task(task_id)['patient_ref'])
-        except KeyError:raise HTTPException(404,'Task not found')
-        try:
-            with store.transaction():
-                result=coordination.resolve(task_id,claim['sub'],data.outcome,data.note)
-                operations.record(result['patient_ref'],task_id,'TASK_RESOLVED',claim['sub'],{'closed':result['status']=='COMPLETED'})
-            return result
-        except KeyError:raise HTTPException(404,'Task not found')
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.post('/v2/patient/receipt')
-    def patient_receipt(data:ReceiptIn,claim=Depends(patient)):
-        access(claim,data.patient_ref)
-        try:
-            with store.transaction():
-                result=coordination.acknowledge_simulated(data.case_id,data.patient_ref)
-                operations.record(data.patient_ref,None,'PATIENT_RECEIPT',claim['sub'])
-            return result
-        except KeyError:raise HTTPException(404,'Case not found')
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.post('/internal/checkin/triage')
-    def internal_triage_checkin(data:dict=Body(...),ok=Depends(internal)):
-        if not isinstance(data.get('event_id'),str):raise HTTPException(422,'event_id required')
-        try:return coordination.triage_checkin(data['event_id'])
-        except KeyError:raise HTTPException(404,'Check-in not found')
-
-    @app.post('/internal/coordination/watch')
-    def coordination_watch(ok=Depends(internal)):
-        return coordination.watch()
-
     @app.post('/internal/retry-pending')
     async def retry_pending(ok=Depends(internal)):
         """Re-dispatch accepted cases if n8n intake was unavailable. Idempotent start protects against replay."""
@@ -431,31 +296,6 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
         return {'attempted_case_ids':attempted,'failed_case_ids':failed,
                 'warning':'Accepted webhook does not prove successful execution; clinical monitoring not guaranteed'}
 
-    @app.get('/v2/metrics')
-    def metrics(claim=Depends(clinician)):
-        if settings.auth_mode=='oidc':
-            raise HTTPException(403,'Aggregate cross-patient metrics require a separate authorized reporting role')
-        return coordination.metrics()
-
-    # FHIR R4 synthetic sandbox interoperability. No real EHR/OAuth integration.
-    @app.post('/v3/fhir/import',status_code=200)
-    def fhir_import(data:dict=Body(...),claim=Depends(clinician)):
-        if len(json.dumps(data,ensure_ascii=False)) > 256_000:
-            raise HTTPException(413,'Synthetic FHIR payload too large')
-        if set(data)!={'patient_ref','is_synthetic','bundle'} or data.get('is_synthetic') is not True:
-            raise HTTPException(422,'Synthetic FHIR wrapper is required')
-        patient_ref=data['patient_ref']
-        access(claim,patient_ref)
-        try: return fhir_bridge.import_bundle(patient_ref,data['bundle'],actor=claim['sub'])
-        except FHIRConflict as e: raise HTTPException(409,str(e))
-        except (ValueError,TypeError,KeyError) as e: raise HTTPException(422,str(e))
-
-    @app.get('/v3/fhir/Observation')
-    def fhir_export(patient_ref:str,limit:int=50,claim=Depends(clinician)):
-        access(claim,patient_ref)
-        try: return fhir_bridge.export_observations(patient_ref,limit)
-        except ValueError as e: raise HTTPException(422,str(e))
-
     @app.post('/internal/ops/audit-health')
     def audit_health(ok=Depends(internal)):
         if store.backend!='postgres':
@@ -469,72 +309,6 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
         if not chain_ok:raise HTTPException(503,'AUDIT_CHAIN_INVALID')
         return {'ok':True,'db_backend':store.backend,'auth_mode':settings.auth_mode,
                 'audit_chain_valid':True,'synthetic_only':True}
-
-    @app.post('/internal/fhir/sandbox-sync')
-    def internal_fhir_sync(ok=Depends(internal)):
-        try:return fhir_bridge.sync_demo()
-        except (FHIRConflict,ValueError) as e:raise HTTPException(409,str(e))
-
-
-    # ---- V2.3 bounded clinician shift + acceptance-based handoff ----
-    @app.post('/v3/shifts',status_code=201)
-    def register_shift(data:ShiftIn,claim=Depends(clinician)):
-        access(claim,data.patient_ref)
-        try:return operations.shift(claim['sub'],data.patient_ref,data.starts_at,data.ends_at)
-        except ValueError as e:raise HTTPException(422,str(e))
-
-    @app.post('/v3/shifts/{shift_id}/cancel')
-    def cancel_shift(shift_id:str,claim=Depends(clinician)):
-        try:return operations.cancel_shift(shift_id,claim['sub'])
-        except KeyError:raise HTTPException(404,'Shift not found')
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.get('/v3/shifts/{patient_ref}')
-    def get_roster(patient_ref:str,claim=Depends(clinician)):
-        access(claim,patient_ref)
-        return {'shifts':operations.roster(patient_ref),'synthetic_only':True}
-
-    @app.post('/v3/tasks/{task_id}/handoff',status_code=201)
-    def offer_handoff(task_id:str,data:HandoffIn,claim=Depends(clinician)):
-        try:t=coordination.get_task(task_id)
-        except KeyError:raise HTTPException(404,'Task not found')
-        access(claim,t['patient_ref'])
-        try:return operations.offer(task_id,claim['sub'],data.to_clinician_sub,data.reason)
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.get('/v3/handoffs/inbox')
-    def handoff_inbox(claim=Depends(clinician)):
-        return {'handoffs':operations.inbox(claim['sub'],allowed_patient_refs(claim)),
-                'warning':'Recipients must explicitly accept; old owner remains until then.'}
-
-    @app.post('/v3/handoffs/{handoff_id}/accept')
-    def accept_handoff(handoff_id:str,claim=Depends(clinician)):
-        try:h=operations.get_handoff(handoff_id)
-        except KeyError:raise HTTPException(404,'Handoff not found')
-        access(claim,h['patient_ref'])
-        try:return operations.decide(handoff_id,claim['sub'],'accept')
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.post('/v3/handoffs/{handoff_id}/reject')
-    def reject_handoff(handoff_id:str,claim=Depends(clinician)):
-        try:h=operations.get_handoff(handoff_id)
-        except KeyError:raise HTTPException(404,'Handoff not found')
-        access(claim,h['patient_ref'])
-        try:return operations.decide(handoff_id,claim['sub'],'reject')
-        except ValueError as e:raise HTTPException(409,str(e))
-
-    @app.get('/v3/patients/{patient_ref}/timeline')
-    def clinical_timeline(patient_ref:str,claim=Depends(clinician)):
-        access(claim,patient_ref)
-        return {'patient_ref':patient_ref,'events':operations.timeline(patient_ref),
-                'synthetic_only':True,'coverage':'Handoff events from v2.3 forward; not a complete EHR history'}
-
-    @app.get('/v3/ops/dispatch-jobs')
-    def dispatch_job_status(claim=Depends(clinician)):
-        if settings.auth_mode=='oidc':
-            raise HTTPException(403,'Cross-patient operational metrics require separate reporting privileges')
-        return {'jobs':dispatch_queue.list_jobs(),'counts':dispatch_queue.counts(),
-                'warning':'Webhook acceptance is not workflow success; no clinical message delivery'}
 
     @app.post('/internal/ops/dispatch-health')
     def internal_dispatch_health(ok=Depends(internal)):
@@ -606,54 +380,11 @@ def create_app(settings=None, model=None, store=None, dispatch=None, checkin_dis
                 'counts':dispatch_queue.counts(),'rearmed_count':len(recovered['rearmed']),
                 'dead_recovery_count':len(recovered['dead']),'expired_lease_count':len(expired_leases),'at_least_once':True,'clinical_notifications_sent':False}
 
-    # ---- V2.4 patient-owned simulated engagement; no outbound messages ----
-    @app.get('/v4/patient/dashboard')
-    def patient_dashboard(days:int=7,claim=Depends(patient)):
-        if days not in (7,14,30):raise HTTPException(422,'Only 7,14,30 days allowed')
-        patient_ref=claim['patient_ref']
-        access(claim,patient_ref)
-        return engagement.dashboard(patient_ref,days)
-
-    @app.get('/v4/patient/preferences')
-    def get_patient_preferences(claim=Depends(patient)):
-        access(claim,claim['patient_ref'])
-        return engagement.preferences(claim['patient_ref'])
-
-    @app.put('/v4/patient/preferences')
-    def change_patient_preferences(data:PatientPreferenceIn,claim=Depends(patient)):
-        access(claim,claim['patient_ref'])
-        return engagement.set_preferences(claim['patient_ref'],data.reminder_opt_in,data.reminder_hour_utc,data.minimum_gap_hours)
-
-    @app.get('/v4/patient/prompts')
-    def get_patient_prompts(claim=Depends(patient)):
-        access(claim,claim['patient_ref'])
-        return {'prompts':engagement.prompts(claim['patient_ref']),'real_notifications_sent':False}
-
-    @app.post('/v4/patient/prompts/{prompt_id}/seen')
-    def patient_prompt_seen(prompt_id:str,claim=Depends(patient)):
-        access(claim,claim['patient_ref'])
-        try:return engagement.mark_seen(claim['patient_ref'],prompt_id)
-        except KeyError:raise HTTPException(404,'Prompt not found')
-        except ValueError:raise HTTPException(409,'Prompt no longer active')
-
-    @app.get('/v4/clinician/alert-groups')
-    def clinician_alert_groups(claim=Depends(clinician)):
-        return engagement.alert_groups(allowed_patient_refs(claim))
-
-    @app.get('/v4/clinician/evaluation/{patient_ref}')
-    def clinician_evaluation(patient_ref:str,days:int=7,claim=Depends(clinician)):
-        access(claim,patient_ref)
-        if days not in (7,14,30):raise HTTPException(422,'Only 7,14,30 days allowed')
-        return engagement.evaluation(patient_ref,days)
-
-    @app.post('/internal/engagement/watch')
-    def internal_engagement_watch(ok=Depends(internal)):
-        return engagement.reminder_watch()
-
-    @app.post('/internal/ops/quality-snapshot')
-    def internal_quality_snapshot(ok=Depends(internal)):
-        return engagement.snapshot()
-
+    app.include_router(build_monitoring_router(MonitoringUseCases(store,coordination,operations,dispatch_queue,settings,N8NCheckinDispatcher(settings,checkin_dispatch)),patient,clinician,auth,internal,access,allowed_patient_refs))
+    app.include_router(build_handoffs_router(HandoffUseCases(operations,coordination,dispatch_queue,settings),clinician,access,allowed_patient_refs))
+    app.include_router(build_case_queries_router(CaseQueries(store),clinician,access,allowed_patient_refs))
+    app.include_router(build_fhir_router(FHIRUseCases(fhir_bridge),clinician,internal,access))
+    app.include_router(build_engagement_router(EngagementUseCases(engagement),clinician,patient,internal,access,allowed_patient_refs))
     app.include_router(build_router(communications,clinician,patient,internal,access))
     return app
 

@@ -68,3 +68,7 @@ The new communications bounded context follows dependency direction from transpo
 All fixtures, data and interfaces are **synthetic and educational**. No validated clinical thresholds, no real emergency line, no regulated device qualification, no real EHR integration, no real delivery channel, no certified secure deployment. The document set is not patient care advice. Do not upload actual PHI, nor expose the default HTTP/demo-auth deployment on a public network.
 
 Additional documentation: [Chinese guide](README_繁體中文.md) · [Threats and gaps](docs/SECURITY_LIMITATIONS.md) · [CA6117 demo](docs/CA6117_DEMO.md) · [Publish private GitHub repo](docs/GITHUB_PUBLISH.md).
+
+## Architecture migration v3.1
+
+The first large compatibility refactor moved monitoring, handoff, FHIR, engagement and case-query routes into presentation/application modules, moved the encrypted SQL backend into infrastructure, and established a pure patient scope policy. **59 API contracts and 15 n8n JSON workflows are preserved.** See [Refactor migration notes](docs/REFACTOR_3_1.md) for remaining legacy and deployment gaps.

@@ -12,6 +12,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -r backend/requirements.txt pytest pytest-asyncio
       - run: pytest -q
+      - run: python scripts/check_architecture.py
       - run: python scripts/verify_artifact.py
       - run: python scripts/evaluate_synthetic_policy.py
       - run: python -m compileall -q backend/app

@@ -36,6 +36,15 @@ flowchart TB
 6. Backend authorization, not the frontend or n8n expression, decides patient-scoped actions.
 7. AI model version, evaluated dataset and RAG evidence need explicit provenance before any supervised clinical pilot.
 
+## Clean Architecture migration (v3.1: completed first slice)
+
+- **Domain:** `backend/app/domain/patient_scope.py` owns framework-free patient-ref validation and access rules.
+- **Application:** `application/access_control.py`, `case_queries.py`, `engagement_use_cases.py`, `fhir_use_cases.py`, `handoffs.py`, `monitoring.py` own the newly migrated use cases; `application/ports.py` defines technology-independent boundaries.
+- **Presentation:** `presentation/auth.py` and `presentation/routers/{case_queries,fhir,engagement,handoffs,monitoring}.py` translate authorization and errors to HTTP while preserving original contract paths.
+- **Infrastructure:** `infrastructure/persistence/{sql_store,postgres_compat}.py` now holds the canonical SQLite/PostgreSQL adapter, and `infrastructure/checkin_dispatcher.py` owns outbound ID-only HTTP dispatch. The previous `app.store` and `app.postgres_compat` names are compatibility imports only.
+- **Compatibility:** all 59 inherited HTTP method/path contracts are verified against a frozen baseline in `docs/API_CONTRACT_3_0.json`. Original 15 n8n Workflow JSON files are unchanged.
+- **Quality gate:** `scripts/check_architecture.py` rejects framework/persistence imports in eight newly migrated pure domain/application modules.
+
 ## Clean architecture limitations
 
-The new communications bounded context follows a clean layering model. Existing agents, orchestration and operational modules predate this design and are encapsulated behind a backward-compatible HTTP adapter. Fully decomposing `legacy_api.py`, replacing SQLite-compat SQL, employing per-request DB connections, and integrating an IAM/PHI-compliant secure stack are **not completed** and are required before considering a real pilot.
+The new communications bounded context follows a clean layering model. Existing agents, orchestration and operational modules predate this design and are encapsulated behind a backward-compatible HTTP adapter. Remaining clinical agent state transitions, durable queue draining, and SQL-backed operations still live in the compatibility module and old orchestration services. Completing those migrations, replacing SQLite-compat SQL, employing per-request DB connections, and integrating an IAM/PHI-compliant secure stack are **not completed** and are required before considering a real pilot.
