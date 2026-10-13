@@ -58,7 +58,8 @@ docker compose up -d --build
 - 首次啟動前執行 `bash scripts/dev_preflight.sh`，先檢查 Docker Compose、`.env` 是否仍有佔位金鑰、設定是否有效及連接埠安全邊界。
 - 啟動後執行 `bash scripts/check_demo.sh`，確認 API、前端與 n8n 健康端點，並再次檢查沒有把服務埠公開到所有網卡。
 - 暫停使用執行 `bash scripts/stop_demo.sh`（保留資料）；要完全清空合成示範資料時才執行 `bash scripts/reset_demo.sh`。重設會刪除 PostgreSQL、n8n 和應用程式的 Docker volumes，並要求輸入確認字串。
-- Dependabot 每週檢查 Python、npm 與 GitHub Actions 依賴更新；CI 使用 pip cache 減少重複下載。npm 套件目前尚未提交 lockfile，因此 npm 解析仍可能受上游版本影響；等可連線套件 registry 後再生成並驗證 lockfiles，不能把版本範圍誤稱為完全鎖版。
+- **依賴可重現安裝：** Python runtime 與測試套件已加入帶 SHA-256 hashes 的 lockfiles；前端及 Chromium 測試加入 npm lockfiles。Docker build 使用鎖定的 Python／npm 依賴，CI 使用 `pip --require-hashes` 與 `npm ci`。
+- **自動更新鎖版依賴：** `.github/workflows/refresh-dependencies.yml` 可手動執行或每月更新 lockfiles 並建立 PR；更新後仍需全部 CI 通過才合併。Dependabot 負責依賴版本提醒。
 
 ## 零預算開發方式（先不租主機）
 

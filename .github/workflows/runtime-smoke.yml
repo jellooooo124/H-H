@@ -340,6 +340,12 @@ jobs:
               assert r.json()["status"]=="TECHNICAL_REVIEW",r.json()["status"]
           print("PASS: true AI-unavailable fail-closed API -> clinical review task")
           PY
+      - name: Set up Node and cache locked browser dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
       - name: Run real Chromium browser clinician-patient message loop
         run: |
           set -euo pipefail
@@ -356,7 +362,7 @@ jobs:
           print(json.dumps({"clinician":clinician,"patient":patient}))
           PY
           chmod 600 /tmp/hah_browser_tokens.json
-          npm install --prefix tests/browser --no-audit --no-fund
+          npm ci --prefix tests/browser --no-audit --no-fund
           ./tests/browser/node_modules/.bin/playwright install --with-deps chromium
           HAH_BROWSER_TOKENS_PATH=/tmp/hah_browser_tokens.json \
             node tests/browser/closed_loop.mjs

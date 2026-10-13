@@ -16,7 +16,7 @@ The Compose demonstration uses local HTTP, demo-signed bearer tokens and n8n set
    cd H-H
    cp .env.example .env
    python3 -m venv .venv
-   .venv/bin/pip install cryptography
+   .venv/bin/pip install --require-hashes -r backend/requirements.lock
    .venv/bin/python scripts/generate_secrets.py
    # Carefully paste each distinct generated value into .env.
    chmod 600 .env
