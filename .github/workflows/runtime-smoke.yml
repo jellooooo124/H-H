@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Avoid paying CI minutes twice for obsolete commits on the same branch/PR.
+concurrency:
+  group: runtime-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   full-stack:
     runs-on: ubuntu-latest
