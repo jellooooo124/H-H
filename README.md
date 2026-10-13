@@ -62,6 +62,13 @@ Generate separate, short-lived synthetic clinician/patient JWTs with `python scr
 
 Browse `backend/app/{domain,application,infrastructure,presentation}`, `frontend/src/`, `workflows/`, `tests/`. Older technical migration and research notes remain in `docs/` for traceability, but **do not determine this portfolio's product requirements**.
 
+## Low-cost maintenance helpers
+
+- Run `bash scripts/dev_preflight.sh` before first startup to check Docker Compose, placeholder secrets, effective Compose config and local-only port boundaries.
+- Run `bash scripts/check_demo.sh` after startup to verify API, frontend and n8n health endpoints.
+- Run `bash scripts/stop_demo.sh` when idle (keeps named volumes). Run `bash scripts/reset_demo.sh` only when you intend to erase all synthetic PostgreSQL, n8n and app volumes; it requires an explicit confirmation phrase.
+- Dependabot checks Python, npm and GitHub Actions dependencies weekly; CI caches pip downloads. npm manifests do not yet have committed lockfiles, so npm dependency resolution is not fully reproducible. Generate and validate those lockfiles when the package registry is reachable rather than hand-writing incomplete lock data.
+
 ## What's not finished
 
 There is **no live public Demo URL yet**. External HTTPS hosting, hardened OIDC identity, protected n8n administration, real model-provider smoke tests, external secret management, monitored backups/restoration, broader UI scenario coverage, and deployment/security reviews remain outstanding. Demo auth, local HTTP n8n settings and synthetic-only checks are **not safe to repurpose for real clinical data**.
