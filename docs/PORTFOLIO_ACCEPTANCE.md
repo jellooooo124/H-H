@@ -37,3 +37,7 @@ Before a public demonstration, use a controlled HTTPS Linux host, demo-only acco
 - Other tests race multiple eligible jobs, checking distinct ownership; SQLite retains its local demonstration path.
 - **At-least-once semantics remain.** A 2xx n8n Webhook acknowledgement is not proof of processing completion; retries can redeliver after worker failure, and idempotent completion remains mandatory.
 - This is not a production cluster guarantee: worker heartbeats, multi-host failover, load tests, queue metrics and operating limits still need dedicated evaluation.
+
+## Downloadable synthetic UI evidence
+
+The successful full-stack GitHub Actions run saves **real Chromium screenshots** of the clinician workspace and patient portal in an artifact named `hah-synthetic-portfolio-ui` (14-day retention). Open the completed [full-stack Actions run](https://github.com/jellooooo124/H-H/actions/workflows/runtime-smoke.yml), scroll to **Artifacts**, and download the ZIP. Browser password fields are masked and CI uses only synthetic DEMO records. Screenshots demonstrate the actual tested web UI; they are not a public live application or evidence of clinical validation.

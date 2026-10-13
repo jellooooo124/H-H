@@ -391,6 +391,16 @@ jobs:
           docker compose exec -T postgres dropdb -U hah_demo hah_restore_ci
           rm -f /tmp/hah_synthetic_restore_ci.dump
           echo "PASS: PostgreSQL pg_dump/pg_restore preserves synthetic patient receipts and audit hashes"
+      - name: Preserve successful synthetic clinician and patient UI screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hah-synthetic-portfolio-ui
+          path: |
+            tests/browser/artifacts/clinician-synthetic-success.png
+            tests/browser/artifacts/patient-synthetic-success.png
+          if-no-files-found: error
+          retention-days: 14
       - name: Collect browser screenshots on failure only
         if: failure()
         uses: actions/upload-artifact@v4
