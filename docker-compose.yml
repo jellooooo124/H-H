@@ -1,6 +1,7 @@
 name: hah-care-coordination-research
 services:
   api:
+    image: hah-care-api:local
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -37,6 +38,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   frontend:
+    image: hah-care-frontend:local
     build:
       context: .
       dockerfile: frontend/Dockerfile
