@@ -59,3 +59,11 @@ docker compose stop      # preserves named volumes
 ```
 
 In GitHub, check the latest `main` Actions runs for current automated acceptance. See [Portfolio acceptance](PORTFOLIO_ACCEPTANCE.md) and [security limitations](SECURITY_LIMITATIONS.md).
+
+## Zero-budget workflow
+
+Keep `OPENAI_API_KEY` empty for routine development. The app must fail closed rather than fabricate an LLM response; most synthetic workflow, persistence, access-control and UI tests do not require a paid model call. Enable a real provider only for a deliberate test, and configure a provider-side usage limit first.
+
+Run temporary environments only while actively testing and stop them afterward. Check the current account allowance and billing controls before creating Codespaces or other hosted compute; free quotas and eligibility can change. CI concurrency cancels obsolete runs on the same branch/PR, while the newest commit still runs the quality and full-stack gates. Do not treat temporary development environments as always-on hosting.
+
+No paid host or model key is required for normal synthetic-only development. Never expose database/n8n admin ports publicly just to avoid a tunnel or TLS setup.

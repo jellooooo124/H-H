@@ -52,3 +52,13 @@ docker compose up -d --build
 現有各階段研究及重構文件保留於 `docs/` 作為技術歷史，但不再以課程評分標準決定 Portfolio 的目標與完成條件。
 
 [英文 README](README.md) · [Portfolio 驗收與缺口](docs/PORTFOLIO_ACCEPTANCE.md) · [Mac 2017 私人遠端部署](docs/PRIVATE_REMOTE_DEMO.md) · [安全限制](docs/SECURITY_LIMITATIONS.md)
+
+## 零預算開發方式（先不租主機）
+
+- **預設不花 AI API 費用：** 保持 `OPENAI_API_KEY=` 空白。AI agent 必須 fail closed；合成資料的 API、角色流程、醫護審核、患者確認、資料庫持久化及大部分瀏覽器測試仍可驗證。只有明確測試真實模型時才自行設定金鑰，並先設定供應商的用量／支出上限。
+- **避免重複 CI 消耗：** GitHub Actions 會取消同一分支或 PR 上已過時的同類執行；最新提交仍會跑品質、PostgreSQL／n8n 及全堆疊驗收。
+- **不用全天開機：** Codespaces 或任何臨時開發環境只在要操作時啟動，完成後停止；先確認帳戶免費額度與計費設定，不假設額度必然足夠，也不把它當 24/7 主機。
+- **本機零成本檢查：** 在不啟動 Docker 的情況下，可以執行 Python 離線測試與前端 build（若本機已有相容的 Python／Node 版本）；完整 PostgreSQL、n8n、Chromium Compose 驗收則交給 GitHub Actions Linux runner。
+- **資料與安全：** 只用合成患者；不將 `.env`、token、API key 或資料庫備份提交到 Git。不要為省錢把 PostgreSQL／n8n 管理埠直接公開到網際網路。
+
+這套方案的目標是開發階段 **NT$0 固定主機費、NT$0 必要模型費**。GitHub／雲端服務額度及供應商方案可能變動，使用前應查看帳戶目前的額度與 billing 設定。
