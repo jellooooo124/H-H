@@ -1,8 +1,8 @@
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /srv
-COPY backend/requirements.txt /srv/requirements.txt
-RUN pip install --no-cache-dir -r /srv/requirements.txt
+COPY backend/requirements.lock /srv/requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r /srv/requirements.lock
 COPY backend/app /srv/app
 COPY knowledge /srv/knowledge
 COPY scripts /srv/scripts

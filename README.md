@@ -67,7 +67,8 @@ Browse `backend/app/{domain,application,infrastructure,presentation}`, `frontend
 - Run `bash scripts/dev_preflight.sh` before first startup to check Docker Compose, placeholder secrets, effective Compose config and local-only port boundaries.
 - Run `bash scripts/check_demo.sh` after startup to verify API, frontend and n8n health endpoints.
 - Run `bash scripts/stop_demo.sh` when idle (keeps named volumes). Run `bash scripts/reset_demo.sh` only when you intend to erase all synthetic PostgreSQL, n8n and app volumes; it requires an explicit confirmation phrase.
-- Dependabot checks Python, npm and GitHub Actions dependencies weekly; CI caches pip downloads. npm manifests do not yet have committed lockfiles, so npm dependency resolution is not fully reproducible. Generate and validate those lockfiles when the package registry is reachable rather than hand-writing incomplete lock data.
+- Python runtime and test dependencies have generated SHA-256-hashed lockfiles; frontend and Chromium tests have npm lockfiles. Docker builds use locked Python/npm dependencies, while CI installs Python via `pip --require-hashes` and npm via `npm ci`.
+- `.github/workflows/refresh-dependencies.yml` can be manually dispatched or runs monthly to refresh lockfiles and open a review PR. CI gates must pass before merge. Dependabot provides weekly dependency update alerts.
 
 ## What's not finished
 
