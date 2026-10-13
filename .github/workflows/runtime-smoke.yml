@@ -424,7 +424,7 @@ jobs:
           echo "PASS: PostgreSQL pg_dump/pg_restore preserves synthetic patient receipts and audit hashes"
       - name: Preserve successful synthetic clinician and patient UI screenshots
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hah-synthetic-portfolio-ui
           path: |
@@ -434,7 +434,7 @@ jobs:
           retention-days: 14
       - name: Collect browser screenshots on failure only
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: synthetic-browser-failure
           path: tests/browser/artifacts/
