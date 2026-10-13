@@ -77,6 +77,20 @@ try {
   const reviewTasks = (await followups.json()).tasks;
   assert.ok(reviewTasks.some(t => t.case_id === 'HHC-CASE-CI-REVIEW' && t.kind === 'escalation_followup'));
 
+  // Save a reproducible synthetic-only visual snapshot for portfolio review.
+  // The screenshots do not include any real patient information.
+  mkdirSync('tests/browser/artifacts', { recursive: true });
+  await clinician.screenshot({
+    path: 'tests/browser/artifacts/clinician-synthetic-success.png',
+    fullPage: true,
+    mask: [clinician.locator('input[type=password]')],
+  });
+  await patient.screenshot({
+    path: 'tests/browser/artifacts/patient-synthetic-success.png',
+    fullPage: true,
+    mask: [patient.locator('input[type=password]')],
+  });
+
   console.log('PASS: real browser fail-closed case -> clinician claim -> escalation -> follow-up task');
   console.log('PASS: real browser clinician draft -> publish -> patient acknowledge -> clinician sees receipt; role separation');
   await ctx.close();
