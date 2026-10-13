@@ -30,3 +30,10 @@ All CI data and secrets are disposable synthetic fixtures. **No production medic
 Before a public demonstration, use a controlled HTTPS Linux host, demo-only accounts with short-lived tokens, immutable deployment version, monitored health checks, synthetic seeded fixtures, strict network exposure and disaster recovery tests. n8n editing UI is administrative and should not be publicly reachable.
 
 **No API keys in Git or GitHub Actions logs.** Do not put real patient health information in any demo data, screenshot, bug report or issue.
+
+## PostgreSQL multi-worker dispatch guarantees
+
+- Real PostgreSQL tests open **independent Store/psycopg connections** and race workers for the same due job. Claims use `FOR UPDATE SKIP LOCKED` inside the queue transaction and assert only one lease wins and attempts increments once.
+- Other tests race multiple eligible jobs, checking distinct ownership; SQLite retains its local demonstration path.
+- **At-least-once semantics remain.** A 2xx n8n Webhook acknowledgement is not proof of processing completion; retries can redeliver after worker failure, and idempotent completion remains mandatory.
+- This is not a production cluster guarantee: worker heartbeats, multi-host failover, load tests, queue metrics and operating limits still need dedicated evaluation.

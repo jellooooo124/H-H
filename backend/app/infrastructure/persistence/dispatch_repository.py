@@ -1,7 +1,7 @@
 """SQL dispatch queue adapter. Business retry policy lives in operations23.QueueJob.
 
 Statements are scoped to bounded opaque reference IDs, no patient content in queue.
-The lease is for a teaching single-process queue; not a distributed queue guarantee.
+PostgreSQL claims are atomic across connections; end-to-end dispatch remains at-least-once.
 """
 from __future__ import annotations
 
@@ -31,6 +31,26 @@ class SqlDispatchRepository:
             WHERE job_key=? AND status IN ('PENDING','LEASED')""",(now,key))
 
     def claim(self,now,max_attempts,lease_seconds):
+        if self.s.backend == 'postgres':
+            # PostgreSQL needs a single atomic cross-connection claim.
+            # QueueJob.claim() already holds the transaction until this returns.
+            # SKIP LOCKED prevents competing workers from waiting on / claiming
+            # the same candidate when another worker owns its row lock.
+            row = self.s.db.execute('''WITH candidate AS (
+                SELECT job_id FROM dispatch_jobs WHERE
+                    (status='PENDING' AND next_run_at<=?) OR
+                    (status='LEASED' AND lease_until<=? AND attempts<?)
+                ORDER BY next_run_at,created_at
+                FOR UPDATE SKIP LOCKED LIMIT 1
+            )
+            UPDATE dispatch_jobs AS job
+               SET status='LEASED',lease_until=?,attempts=attempts+1,
+                   updated_at=?
+              FROM candidate WHERE job.job_id=candidate.job_id
+            RETURNING job.*''',
+                (now, now, max_attempts, now + lease_seconds, now)).fetchone()
+            return dict(row) if row else None
+        # SQLite demo adapter still uses a conditional single-worker CAS.
         row=self.s.db.execute('''SELECT * FROM dispatch_jobs WHERE
             (status='PENDING' AND next_run_at<=?) OR (status='LEASED' AND lease_until<=? AND attempts<?)
             ORDER BY next_run_at,created_at LIMIT 1''',(now,now,max_attempts)).fetchone()

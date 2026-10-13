@@ -1,7 +1,7 @@
 """2.3 synthetic-only on-call handoff and durable orchestration dispatch.
 
 No on-call paging, clinical advice, or patient notification. n8n only receives opaque IDs.
-Database CAS is used for state transitions; demo single-worker PostgresCompat isn't a cluster queue.
+PostgreSQL claims use row-level SKIP LOCKED; the overall dispatch protocol remains at-least-once, not exactly-once.
 """
 from __future__ import annotations
 import time, uuid
