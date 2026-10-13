@@ -53,6 +53,13 @@ docker compose up -d --build
 
 [英文 README](README.md) · [Portfolio 驗收與缺口](docs/PORTFOLIO_ACCEPTANCE.md) · [Mac 2017 私人遠端部署](docs/PRIVATE_REMOTE_DEMO.md) · [安全限制](docs/SECURITY_LIMITATIONS.md)
 
+## 低成本維護工具
+
+- 首次啟動前執行 `bash scripts/dev_preflight.sh`，先檢查 Docker Compose、`.env` 是否仍有佔位金鑰、設定是否有效及連接埠安全邊界。
+- 啟動後執行 `bash scripts/check_demo.sh`，確認 API、前端與 n8n 健康端點，並再次檢查沒有把服務埠公開到所有網卡。
+- 暫停使用執行 `bash scripts/stop_demo.sh`（保留資料）；要完全清空合成示範資料時才執行 `bash scripts/reset_demo.sh`。重設會刪除 PostgreSQL、n8n 和應用程式的 Docker volumes，並要求輸入確認字串。
+- Dependabot 每週檢查 Python、npm 與 GitHub Actions 依賴更新；CI 使用 pip cache 減少重複下載。npm 套件目前尚未提交 lockfile，因此 npm 解析仍可能受上游版本影響；等可連線套件 registry 後再生成並驗證 lockfiles，不能把版本範圍誤稱為完全鎖版。
+
 ## 零預算開發方式（先不租主機）
 
 - **預設不花 AI API 費用：** 保持 `OPENAI_API_KEY=` 空白。AI agent 必須 fail closed；合成資料的 API、角色流程、醫護審核、患者確認、資料庫持久化及大部分瀏覽器測試仍可驗證。只有明確測試真實模型時才自行設定金鑰，並先設定供應商的用量／支出上限。

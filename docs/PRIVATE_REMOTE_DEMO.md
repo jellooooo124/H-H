@@ -22,11 +22,16 @@ The Compose demonstration uses local HTTP, demo-signed bearer tokens and n8n set
    chmod 600 .env
    ```
 4. **Never** keep placeholder values, reuse secrets between environments, commit `.env`, or insert real patient records. Set `OPENAI_API_KEY` empty unless deliberately opting in to provider costs.
-5. Run the containers on the Linux server:
+5. Run the preflight checks on the Linux server before starting:
+   ```bash
+   bash scripts/dev_preflight.sh
+   ```
+   Then start the containers:
    ```bash
    docker compose config -q
    docker compose up -d --build
    bash scripts/verify_remote_deployment.sh
+   bash scripts/check_demo.sh
    ```
    The verification script **fails** if the published frontend/API/n8n ports are not bound to 127.0.0.1, or if PostgreSQL is exposed through a host port.
 6. From your Mac Terminal (replace `SERVER_USER` and `SERVER_IP`, keep this terminal open):
@@ -55,7 +60,9 @@ The Compose demonstration uses local HTTP, demo-signed bearer tokens and n8n set
 ```bash
 docker compose ps
 docker compose logs --tail=80 api frontend n8n postgres
-docker compose stop      # preserves named volumes
+bash scripts/stop_demo.sh # stops containers and preserves named volumes
+# Only when you intend to erase all synthetic demo data and n8n state:
+bash scripts/reset_demo.sh
 ```
 
 In GitHub, check the latest `main` Actions runs for current automated acceptance. See [Portfolio acceptance](PORTFOLIO_ACCEPTANCE.md) and [security limitations](SECURITY_LIMITATIONS.md).
