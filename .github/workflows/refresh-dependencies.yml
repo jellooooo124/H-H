@@ -43,7 +43,7 @@ jobs:
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
         working-directory: tests/browser
       - name: Open a review PR for refreshed lockfiles
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/refresh-dependency-locks
           delete-branch: true
