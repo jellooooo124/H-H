@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Enable BuildKit and GitHub Actions cache
         uses: docker/setup-buildx-action@v4
       - name: Build API image with reusable layer cache

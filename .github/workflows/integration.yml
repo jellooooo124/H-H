@@ -33,7 +33,7 @@ jobs:
       PG_TEST_URL: postgresql://hah_ci:local_ci_only_password@127.0.0.1:5432/hah_ci_disposable
       DEMO_MODE: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify import JSON and API boundary first
         run: python scripts/verify_artifact.py
       - name: Import all workflows into disposable n8n database
