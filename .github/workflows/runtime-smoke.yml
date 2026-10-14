@@ -341,7 +341,7 @@ jobs:
           print("PASS: true AI-unavailable fail-closed API -> clinical review task")
           PY
       - name: Set up Node and cache locked browser dependencies
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
