@@ -68,3 +68,33 @@ def test_cli_returns_failure_without_revealing_config_secrets():
     assert run.returncode == 1
     assert "frontend" in run.stderr
     assert "do-not-print" not in run.stdout + run.stderr
+
+
+def test_config_only_mode_does_not_require_running_containers(tmp_path, monkeypatch):
+    """Use a fake Docker CLI to prove pre-start validation never calls `compose port/ps/exec`."""
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(safe_config()))
+    calls_path = tmp_path / "calls.txt"
+    docker = tmp_path / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' \"$*\" >> \"$FAKE_DOCKER_LOG\"\n"
+        "case \"$*\" in\n"
+        "  'compose version'|'compose config -q') exit 0 ;;\n"
+        "  'compose config --format json') cat \"$FAKE_COMPOSE_JSON\" ;;\n"
+        "  *) echo 'Unexpected runtime Docker call' >&2; exit 42 ;;\n"
+        "esac\n"
+    )
+    docker.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + ":" + __import__("os").environ["PATH"])
+    monkeypatch.setenv("FAKE_DOCKER_LOG", str(calls_path))
+    monkeypatch.setenv("FAKE_COMPOSE_JSON", str(config_path))
+    run = subprocess.run(
+        ["bash", "scripts/verify_remote_deployment.sh", "--config-only"],
+        cwd=ROOT, text=True, capture_output=True, check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "no containers required" in run.stdout
+    assert calls_path.read_text().splitlines() == [
+        "compose version", "compose config -q", "compose config --format json"
+    ]
