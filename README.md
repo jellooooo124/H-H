@@ -64,7 +64,7 @@ Browse `backend/app/{domain,application,infrastructure,presentation}`, `frontend
 
 ## Low-cost maintenance helpers
 
-- Run `bash scripts/dev_preflight.sh` before first startup to check Docker Compose, placeholder secrets, effective Compose config and local-only port boundaries.
+- Before first startup, run `bash scripts/dev_preflight.sh` to check Docker Compose, placeholder secrets, effective Compose config and local-only port boundaries **without requiring running containers**. After startup, run `bash scripts/verify_remote_deployment.sh` for live port and service-health checks.
 - Run `bash scripts/check_demo.sh` after startup to verify API, frontend and n8n health endpoints.
 - Run `bash scripts/stop_demo.sh` when idle (keeps named volumes). Run `bash scripts/reset_demo.sh` only when you intend to erase all synthetic PostgreSQL, n8n and app volumes; it requires an explicit confirmation phrase.
 - Python runtime and test dependencies have generated SHA-256-hashed lockfiles; frontend and Chromium tests have npm lockfiles. Docker builds use locked Python/npm dependencies, while CI installs Python via `pip --require-hashes` and npm via `npm ci`.
