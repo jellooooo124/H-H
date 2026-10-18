@@ -1,12 +1,17 @@
 """Regression tests for the private-only demo Compose host-port contract."""
+import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-from scripts.check_compose_ports import validate_ports
-
 ROOT = Path(__file__).resolve().parents[1]
+_SPEC = importlib.util.spec_from_file_location("check_compose_ports", ROOT / "scripts" / "check_compose_ports.py")
+assert _SPEC and _SPEC.loader
+_MODULE = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_MODULE)
+validate_ports = _MODULE.validate_ports
 
 
 def safe_config():
@@ -86,7 +91,7 @@ def test_config_only_mode_does_not_require_running_containers(tmp_path, monkeypa
         "esac\n"
     )
     docker.chmod(0o755)
-    monkeypatch.setenv("PATH", str(tmp_path) + ":" + __import__("os").environ["PATH"])
+    monkeypatch.setenv("PATH", str(tmp_path) + ":" + os.environ["PATH"])
     monkeypatch.setenv("FAKE_DOCKER_LOG", str(calls_path))
     monkeypatch.setenv("FAKE_COMPOSE_JSON", str(config_path))
     run = subprocess.run(
