@@ -21,6 +21,6 @@ else
 fi
 
 docker compose config -q
-bash scripts/verify_remote_deployment.sh
+bash scripts/verify_remote_deployment.sh --config-only
 echo "PASS: Compose configuration valid and host ports remain loopback-only."
 echo "Next: docker compose up -d --build && bash scripts/check_demo.sh"

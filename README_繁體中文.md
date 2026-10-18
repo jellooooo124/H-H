@@ -55,7 +55,7 @@ docker compose up -d --build
 
 ## 低成本維護工具
 
-- 首次啟動前執行 `bash scripts/dev_preflight.sh`，先檢查 Docker Compose、`.env` 是否仍有佔位金鑰、設定是否有效及連接埠安全邊界。
+- 首次啟動前執行 `bash scripts/dev_preflight.sh`，先檢查 Docker Compose、`.env` 是否仍有佔位金鑰、設定是否有效及連接埠安全邊界，**不必先啟動容器**。啟動後可執行 `bash scripts/verify_remote_deployment.sh`，進一步檢查實際服務埠與健康狀態。
 - 啟動後執行 `bash scripts/check_demo.sh`，確認 API、前端與 n8n 健康端點，並再次檢查沒有把服務埠公開到所有網卡。
 - 暫停使用執行 `bash scripts/stop_demo.sh`（保留資料）；要完全清空合成示範資料時才執行 `bash scripts/reset_demo.sh`。重設會刪除 PostgreSQL、n8n 和應用程式的 Docker volumes，並要求輸入確認字串。
 - **依賴可重現安裝：** Python runtime 與測試套件已加入帶 SHA-256 hashes 的 lockfiles；前端及 Chromium 測試加入 npm lockfiles。Docker build 使用鎖定的 Python／npm 依賴，CI 使用 `pip --require-hashes` 與 `npm ci`。
