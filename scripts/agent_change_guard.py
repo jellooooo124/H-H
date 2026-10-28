@@ -31,7 +31,9 @@ EMPTY = {"none", "n/a", "na", "todo", "tbd", "pending", "-", "placeholder", "not
 
 
 def classify(path: str) -> str:
-    p = path.replace("\\", "/").lstrip("./")
+    p = path.replace("\\", "/")
+    if p.startswith("./"):
+        p = p[2:]
     lower = p.lower()
     if not p or p.startswith("/") or ".." in p.split("/"):
         return "F"
