@@ -32,3 +32,7 @@ A change may span several classes. Use the highest-risk applicable class to deci
 - Never publicly deploy the demo, expose PostgreSQL/n8n administrative ports, or perform destructive volume resets without explicit authorization.
 - Do not weaken tests, disable safety gates, or report unverified checks as passing.
 - Keep pull requests reviewable and use `.github/PULL_REQUEST_TEMPLATE.md`.
+
+## Automated PR triage (pilot)
+
+The read-only GitHub Actions workflow `.github/workflows/agent-change-guard.yml` maps changed paths to these classes and publishes a JSON artifact. Classes C/D/E require PR fields `Validation evidence` and `Rollback plan`; class F additionally needs `Risk owner`. This checks that **non-placeholder text exists**, not that the tests ran or that the named person reviewed. See [pilot design, benchmark and limitations](AGENT_ENGINEERING_PLATFORM.md). Real human approvals require independently configured protected branches/CODEOWNERS.
