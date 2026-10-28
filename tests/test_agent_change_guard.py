@@ -1,12 +1,15 @@
 """Regression tests for developer-agent PR policy. No network, LLM, or patient data."""
 import json
+import sys
 import unittest
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from scripts.agent_change_guard import classify, evaluate_change, markdown_report
 from scripts.evaluate_agent_guard import run
 
-ROOT = Path(__file__).resolve().parents[1]
 
 
 class AgentChangeGuardTests(unittest.TestCase):
