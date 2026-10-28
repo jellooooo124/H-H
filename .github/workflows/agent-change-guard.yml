@@ -1,0 +1,64 @@
+name: Agent change governance and evaluation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-governance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Deterministic agent-change policy benchmarks
+        run: |
+          python scripts/evaluate_agent_guard.py --output agent-guard-benchmark-report.json
+          python -m unittest discover -s tests -p 'test_agent_change_guard.py'
+      - name: Upload reproducible benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-guard-benchmark
+          path: agent-guard-benchmark-report.json
+          retention-days: 7
+
+  triage-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Triage changed paths and required PR evidence
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python scripts/agent_change_guard.py \
+            --base "$BASE_SHA" --head "$HEAD_SHA" \
+            --enforce-evidence \
+            --output agent-change-report.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+      - name: Upload risk classification artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-change-risk
+          path: agent-change-report.json
+          if-no-files-found: ignore
+          retention-days: 7

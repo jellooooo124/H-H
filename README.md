@@ -2,6 +2,19 @@
 
 **Independent full-stack software engineering portfolio** combining n8n workflow automation, FastAPI, PostgreSQL, Vue 3, bounded LLM agents, RAG, human review and audit trails. It is **not** an academic assignment deliverable, and it is **not a clinical product**. All supported data are synthetic; no real patients, diagnosis, treatment or emergency response.
 
+## Agentic engineering platform pilot (developer tooling)
+
+This repo now doubles as a **coding-agent change-governance pilot**: a read-only GitHub Actions check classifies PR changes (A–F), requires documented validation/rollback/ownership for higher-risk files, and reports benchmark results from reproducible synthetic fixtures. It is a deterministic guardrail, **not an autonomous code-writing agent, a verified human approval, or an agent sandbox**.
+
+- [Design, threat boundaries and evaluation metrics](docs/AGENT_ENGINEERING_PLATFORM.md)
+- [Agent working agreement](AGENTS.md) · [Task taxonomy](docs/AGENT_TASKS.md) · [PR evidence template](.github/PULL_REQUEST_TEMPLATE.md)
+- [GitHub Actions checks](https://github.com/jellooooo124/H-H/actions/workflows/agent-change-guard.yml)
+
+```bash
+python scripts/evaluate_agent_guard.py
+python -m pytest -q tests/test_agent_change_guard.py
+```
+
 ## What actually works
 
 - Two browser-facing Vue workspaces: clinician case/task queue and patient portal.

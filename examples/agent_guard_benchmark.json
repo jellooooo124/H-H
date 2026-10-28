@@ -1,0 +1,121 @@
+{
+  "name": "agent-pr-guard-v1-synthetic",
+  "cases": [
+    {
+      "id": "docs",
+      "files": [
+        "docs/ARCHITECTURE.md"
+      ],
+      "expected_class": "A",
+      "expected_review_required": false,
+      "expected_evidence_complete": true
+    },
+    {
+      "id": "ui",
+      "files": [
+        "frontend/src/App.vue",
+        "tests/test_system.py"
+      ],
+      "expected_class": "B",
+      "expected_review_required": false,
+      "expected_evidence_complete": true
+    },
+    {
+      "id": "domain_missing",
+      "files": [
+        "backend/app/domain/workflow_rules.py"
+      ],
+      "expected_class": "C",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    },
+    {
+      "id": "domain_evidence",
+      "files": [
+        "backend/app/application/clinical_cases.py"
+      ],
+      "pr_body": "- Validation evidence: pytest tests/test_system.py\n- Rollback plan: revert the PR",
+      "expected_class": "C",
+      "expected_review_required": true,
+      "expected_evidence_complete": true
+    },
+    {
+      "id": "n8n_missing",
+      "files": [
+        "workflows/01_agentic_case_loop.json"
+      ],
+      "expected_class": "D",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    },
+    {
+      "id": "ci_evidence",
+      "files": [
+        ".github/dependabot.yml"
+      ],
+      "pr_body": "- Validation evidence: checked dependency checks\n- Rollback plan: revert change",
+      "expected_class": "E",
+      "expected_review_required": true,
+      "expected_evidence_complete": true
+    },
+    {
+      "id": "auth_owner_missing",
+      "files": [
+        "backend/app/presentation/auth.py"
+      ],
+      "pr_body": "- Validation evidence: auth regression suite\n- Rollback plan: revert PR",
+      "expected_class": "F",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    },
+    {
+      "id": "security_complete",
+      "files": [
+        "backend/app/security.py"
+      ],
+      "pr_body": "- Validation evidence: auth regression suite\n- Risk owner: repository maintainer\n- Rollback plan: revert PR",
+      "expected_class": "F",
+      "expected_review_required": true,
+      "expected_evidence_complete": true
+    },
+    {
+      "id": "mixed_highest",
+      "files": [
+        "docs/README.md",
+        "workflows/01_agentic_case_loop.json",
+        "docker-compose.yml"
+      ],
+      "expected_class": "F",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    },
+    {
+      "id": "unknown_conservative",
+      "files": [
+        "new-automation-plugin/config.toml"
+      ],
+      "expected_class": "C",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    },
+    {
+      "id": "template_comment_not_evidence",
+      "files": [
+        ".github/workflows/tests.yml"
+      ],
+      "pr_body": "<!-- - Validation evidence: fake\n- Risk owner: fake\n- Rollback plan: fake -->",
+      "expected_class": "F",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    },
+    {
+      "id": "agent_policy_self_change",
+      "files": [
+        "scripts/agent_change_guard.py"
+      ],
+      "expected_class": "F",
+      "expected_review_required": true,
+      "expected_evidence_complete": false
+    }
+  ]
+}
