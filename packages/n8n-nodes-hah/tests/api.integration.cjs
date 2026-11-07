@@ -15,7 +15,7 @@ test('compiled node → real HTTP → FastAPI auth/persistence/triage', { timeou
   const env = { ...process.env, APP_INTERNAL_KEY: key, APP_TOKEN_SECRET: randomBytes(32).toString('hex'),
     APP_ENCRYPTION_KEY: randomBytes(32).toString('base64url') + '=', DB_PATH: path.join(temp, 'test.db'),
     DATABASE_URL: '', AUTH_MODE: 'demo', DEMO_MODE: 'true', OPENAI_API_KEY: '',
-    KNOWLEDGE_DIR: path.resolve(__dirname, '../../../..', 'knowledge') };
+    KNOWLEDGE_DIR: path.resolve(__dirname, '../../..', 'knowledge') };
   const server = spawn(process.env.PYTHON || 'python3', [path.join(__dirname, 'serve_api.py')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   let serverErrors = '';
   server.stderr.on('data', b => { serverErrors += b.toString(); });
