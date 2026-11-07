@@ -71,3 +71,9 @@ docker compose up -d --build
 - **資料與安全：** 只用合成患者；不將 `.env`、token、API key 或資料庫備份提交到 Git。不要為省錢把 PostgreSQL／n8n 管理埠直接公開到網際網路。
 
 這套方案的目標是開發階段 **NT$0 固定主機費、NT$0 必要模型費**。GitHub／雲端服務額度及供應商方案可能變動，使用前應查看帳戶目前的額度與 billing 設定。
+
+## TypeScript n8n custom node（可選安裝）
+
+新增 [n8n-nodes-hah](packages/n8n-nodes-hah/README.md)：集中管理內部 API 憑證、逐筆 event ID 對應、dispatch 健康檢查與既有 check-in 分流、有限重試及去敏錯誤。臨床判斷與權限仍由 FastAPI 控制；不接收病患內容、不呼叫付費模型、不發送通知。
+
+[兩個手動範例](packages/n8n-nodes-hah/examples) 與原有 15 個 workflows 分開，需自行安裝節點、選取憑證，分流範例需填入已存在的合成事件 ID。現有 Compose 不會自動安裝此套件。詳見套件文件的設置、測試、展示、重試限制與回復步驟，以及 [custom-node CI](https://github.com/jellooooo124/H-H/actions/workflows/custom-node.yml)。這是整合實作證據，不代表正式醫療環境或企業生產經驗。

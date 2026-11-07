@@ -1,0 +1,23 @@
+{
+  "name": "n8n-nodes-hah",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ID-only H@H synthetic care coordination integration for n8n",
+  "keywords": ["n8n-community-node-package"],
+  "license": "UNLICENSED",
+  "repository": {"type": "git", "url": "https://github.com/jellooooo124/H-H.git", "directory": "packages/n8n-nodes-hah"},
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "test:integration": "npm run build && node --test tests/*.integration.cjs"
+  },
+  "engines": {"node": ">=22"},
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": ["dist/credentials/HahApi.credentials.js"],
+    "nodes": ["dist/nodes/Hah/Hah.node.js"]
+  },
+  "peerDependencies": {"n8n-workflow": "^2.16.0"},
+  "devDependencies": {"n8n-workflow": "2.16.0", "typescript": "5.9.3", "@types/node": "22.19.0"}
+}
