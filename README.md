@@ -2,23 +2,19 @@
 
 **Independent full-stack software engineering portfolio** combining n8n workflow automation, FastAPI, PostgreSQL, Vue 3, bounded LLM agents, RAG, human review and audit trails. It is **not** an academic assignment deliverable, and it is **not a clinical product**. All supported data are synthetic; no real patients, diagnosis, treatment or emergency response.
 
-## Agentic engineering platform pilot (developer tooling)
+## Review the integration in three minutes
 
-This repo now doubles as a **coding-agent change-governance pilot**: a read-only GitHub Actions check classifies PR changes (A–F), requires documented validation/rollback/ownership for higher-risk files, and reports benchmark results from reproducible synthetic fixtures. It is a deterministic guardrail, **not an autonomous code-writing agent, a verified human approval, or an agent sandbox**.
+1. [TypeScript custom node](packages/n8n-nodes-hah): credential-backed FastAPI integration, ID-only mapping, bounded health retries, redacted errors and per-item linking.
+2. [Two manual example workflows](packages/n8n-nodes-hah/examples): inspect dispatch health or triage an already-stored synthetic check-in.
+3. [Setup, security boundaries and demo walkthrough](packages/n8n-nodes-hah/README.md), then [CI evidence](https://github.com/jellooooo124/H-H/actions/workflows/custom-node.yml).
 
-- [Design, threat boundaries and evaluation metrics](docs/AGENT_ENGINEERING_PLATFORM.md)
-- [Agent working agreement](AGENTS.md) · [Task taxonomy](docs/AGENT_TASKS.md) · [PR evidence template](.github/PULL_REQUEST_TEMPLATE.md)
-- [GitHub Actions checks](https://github.com/jellooooo124/H-H/actions/workflows/agent-change-guard.yml)
-
-```bash
-python scripts/evaluate_agent_guard.py
-python -m pytest -q tests/test_agent_change_guard.py
-```
+This is portfolio evidence of integration implementation and testing. It does not establish production ownership, clinical effectiveness or enterprise deployment experience.
 
 ## What actually works
 
 - Two browser-facing Vue workspaces: clinician case/task queue and patient portal.
 - Role-scoped API access, synthetic check-ins, durable task dispatch, monitoring trends, encrypted persistence, tamper-evident audit trail, FHIR R4 *synthetic* interoperability.
+- **Optional reusable TypeScript n8n custom node**, with authenticated dispatch health and stored check-in triage, plus two manual examples kept separate from the baseline workflows.
 - **15 importable n8n workflows**, including a published synthetic Check-in webhook integrated with FastAPI.
 - Clinician-approved **non-clinical, fixed-template** message drafts and publication; patients acknowledge them in the portal. No external SMS/email/hospital paging.
 - Deterministic safety gates, bounded agent tools, model unavailability fail-closed to technical review.
@@ -28,10 +24,11 @@ python -m pytest -q tests/test_agent_change_guard.py
 
 ## Test evidence in GitHub Actions
 
-The repository has three automated workflows under `.github/workflows/`:
+Core product checks under `.github/workflows/` include:
 
 | Check | Real execution in CI |
 | --- | --- |
+| `custom-node.yml` | TypeScript build, security/unit tests, real HTTP FastAPI contract tests, and Docker n8n package/credential/example execution |
 | `tests.yml` | Python unit/contract/security checks, architecture, synthetic policy, Vue build |
 | `integration.yml` | PostgreSQL 17 live tests including independent transactions; n8n 2.42.6 import of all 15 JSON workflows |
 | `runtime-smoke.yml` | Full Docker Compose startup, published n8n webhook, genuine patient API → n8n → PostgreSQL triage, real Chromium clinician → patient communication acknowledgement, PostgreSQL/API restart persistence |
@@ -62,6 +59,23 @@ Import the 15 **individual JSON files** from `workflows/` using n8n import (or i
 
 Generate separate, short-lived synthetic clinician/patient JWTs with `python scripts/generate_demo_token.py --help`; keep credentials out of Git, bug reports and screenshots. Without `OPENAI_API_KEY`, AI-dependent steps **fail closed** rather than producing fictitious agent results.
 
+## Run focused checks without the full stack
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install --require-hashes -r backend/requirements-dev.lock
+pytest -q
+python scripts/check_architecture.py
+python scripts/verify_artifact.py
+python scripts/evaluate_synthetic_policy.py
+npm --prefix packages/n8n-nodes-hah ci --ignore-scripts
+npm --prefix packages/n8n-nodes-hah test
+npm --prefix packages/n8n-nodes-hah run test:integration
+```
+
+Python 3.12 is the CI baseline; Node 22 builds the custom node. PostgreSQL live tests are opt-in and require an isolated database. The new HTTP integration test uses disposable SQLite, so it does not replace PostgreSQL or full-stack smoke checks. See the package guide for installing the optional node into self-hosted n8n; the existing Compose stack does not install it automatically.
+
 ## Architectural trust boundaries
 
 | Layer | Responsibility |
@@ -74,6 +88,19 @@ Generate separate, short-lived synthetic clinician/patient JWTs with `python scr
 | Model/RAG integrations | Bounded structured data, cited evidence, fail-closed when unavailable |
 
 Browse `backend/app/{domain,application,infrastructure,presentation}`, `frontend/src/`, `workflows/`, `tests/`. Older technical migration and research notes remain in `docs/` for traceability, but **do not determine this portfolio's product requirements**.
+
+## Agentic engineering platform pilot (developer tooling)
+
+This repo now doubles as a **coding-agent change-governance pilot**: a read-only GitHub Actions check classifies PR changes (A–F), requires documented validation/rollback/ownership for higher-risk files, and reports benchmark results from reproducible synthetic fixtures. It is a deterministic guardrail, **not an autonomous code-writing agent, a verified human approval, or an agent sandbox**.
+
+- [Design, threat boundaries and evaluation metrics](docs/AGENT_ENGINEERING_PLATFORM.md)
+- [Agent working agreement](AGENTS.md) · [Task taxonomy](docs/AGENT_TASKS.md) · [PR evidence template](.github/PULL_REQUEST_TEMPLATE.md)
+- [GitHub Actions checks](https://github.com/jellooooo124/H-H/actions/workflows/agent-change-guard.yml)
+
+```bash
+python scripts/evaluate_agent_guard.py
+python -m pytest -q tests/test_agent_change_guard.py
+```
 
 ## Low-cost maintenance helpers
 
